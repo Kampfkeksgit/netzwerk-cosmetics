@@ -11,6 +11,8 @@ import org.bukkit.entity.Player;
  * @param leftModel  Item-Modell (assets/&lt;ns&gt;/items/...) fuer den linken Fluegel
  * @param rightModel Item-Modell fuer den rechten Fluegel
  * @param iconModel  Item-Modell fuer das Menue-Icon
+ * @param scale      eigene Groesse (0 = Standard aus wing-settings.scale)
+ * @param flapFactor Staerke des Fluegelschlags (1 = normal, 0.4 = steif wie Metall)
  */
 public record WingType(
         String id,
@@ -19,7 +21,9 @@ public record WingType(
         String permission,
         NamespacedKey leftModel,
         NamespacedKey rightModel,
-        NamespacedKey iconModel
+        NamespacedKey iconModel,
+        float scale,
+        float flapFactor
 ) {
 
     public boolean canUse(Player player) {

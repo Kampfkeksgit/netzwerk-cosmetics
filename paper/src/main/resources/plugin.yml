@@ -30,5 +30,8 @@ permissions:
     default: op
     children:
       cosmetics.wings.angel: true
+      cosmetics.wings.fallen: true
+      cosmetics.wings.phoenix: true
       cosmetics.wings.demon: true
       cosmetics.wings.fairy: true
+      cosmetics.wings.mecha: true

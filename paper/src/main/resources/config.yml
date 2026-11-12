@@ -63,8 +63,8 @@ storage:
 # Fluegel
 # ---------------------------------------------------------------------
 wing-settings:
-  # Groesse der Fluegel
-  scale: 0.75
+  # Standard-Groesse der Fluegel (jeder Fluegel kann unten eine eigene "scale" haben)
+  scale: 0.8
   # Position relativ zum Kopf-Mitfahrpunkt (Bloecke): y = hoch/runter, z = vor/zurueck
   offset-y: -0.42
   offset-z: -0.20
@@ -88,25 +88,48 @@ wing-settings:
 
 # id -> Einstellungen. Das Item-Modell wird aus "model" gebildet:
 #   <model>_left, <model>_right (am Ruecken), <model>_icon (im Menue)
+# Optional: scale (eigene Groesse), flap (Schlagstaerke, 1 = normal)
 wings:
   angel:
-    name: "<gradient:#ffffff:#a8c8ff>Engelsfluegel</gradient>"
+    name: "<gradient:#ffffff:#ffe9a8>Seraph-Fluegel</gradient>"
     model: "cosmetics:wings/angel"
     permission: "cosmetics.wings.angel"
     lore:
-      - "<gray>Leicht wie eine Feder."
+      - "<gray>Schneeweisse Schwingen mit goldenem Saum."
+      - "<gray>Die Spitzen leuchten sanft."
+  fallen:
+    name: "<gradient:#b47cff:#3b2a63>Gefallener Engel</gradient>"
+    model: "cosmetics:wings/fallen"
+    permission: "cosmetics.wings.fallen"
+    lore:
+      - "<gray>Schwarze Federn, violett gluehende Spitzen."
+  phoenix:
+    name: "<gradient:#ffe066:#ff6a1c:#c8261a>Phoenix-Schwingen</gradient>"
+    model: "cosmetics:wings/phoenix"
+    permission: "cosmetics.wings.phoenix"
+    lore:
+      - "<gray>Brennende Federn und tanzende Glut."
   demon:
     name: "<gradient:#ff3b3b:#5a0010>Daemonenfluegel</gradient>"
     model: "cosmetics:wings/demon"
     permission: "cosmetics.wings.demon"
     lore:
-      - "<gray>Direkt aus dem Nether."
+      - "<gray>Ledrige Schwingen mit gluehenden Adern."
   fairy:
     name: "<gradient:#7fe8ff:#e08cff>Feenfluegel</gradient>"
     model: "cosmetics:wings/fairy"
     permission: "cosmetics.wings.fairy"
+    scale: 0.85
+    flap: 1.4
     lore:
-      - "<gray>Glitzert im Sonnenlicht."
+      - "<gray>Durchscheinend, mit leuchtendem Rand."
+  mecha:
+    name: "<gradient:#e8f6ff:#21c8ff>Mecha-Schwingen</gradient>"
+    model: "cosmetics:wings/mecha"
+    permission: "cosmetics.wings.mecha"
+    flap: 0.4
+    lore:
+      - "<gray>Panzerrahmen mit Energieklingen."
 
 # ---------------------------------------------------------------------
 # Nachrichten (MiniMessage)

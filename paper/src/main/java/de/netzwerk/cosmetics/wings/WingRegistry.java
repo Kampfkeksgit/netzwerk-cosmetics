@@ -51,7 +51,8 @@ public final class WingRegistry {
             Component name = Messages.noItalic(Messages.parse(s.getString("name", id)));
             String key = id.toLowerCase(Locale.ROOT);
             wings.put(key, new WingType(key, name, List.copyOf(lore),
-                    s.getString("permission", "cosmetics.wings." + key), left, right, icon));
+                    s.getString("permission", "cosmetics.wings." + key), left, right, icon,
+                    (float) s.getDouble("scale", 0), (float) s.getDouble("flap", 1.0)));
         }
         plugin.getLogger().info(wings.size() + " Fluegel geladen.");
     }

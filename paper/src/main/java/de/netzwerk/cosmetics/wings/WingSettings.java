@@ -23,7 +23,7 @@ public record WingSettings(
     public static WingSettings fromConfig(FileConfiguration c) {
         String p = "wing-settings.";
         return new WingSettings(
-                (float) c.getDouble(p + "scale", 0.75),
+                (float) c.getDouble(p + "scale", 0.8),
                 (float) c.getDouble(p + "offset-y", -0.42),
                 (float) c.getDouble(p + "offset-z", -0.20),
                 (float) c.getDouble(p + "spread-x", 0.06),

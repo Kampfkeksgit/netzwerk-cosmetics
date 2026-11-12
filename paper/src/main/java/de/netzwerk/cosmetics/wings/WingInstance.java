@@ -130,8 +130,8 @@ final class WingInstance {
         flapClosed = false;
         lastFlying = isFlying();
 
-        left = spawnPart(loc, type.leftModel(), transformation(Side.LEFT, s.restAngle(), s));
-        right = spawnPart(loc, type.rightModel(), transformation(Side.RIGHT, s.restAngle(), s));
+        left = spawnPart(loc, type.leftModel(), transformation(Side.LEFT, s.restAngle(), s, type));
+        right = spawnPart(loc, type.rightModel(), transformation(Side.RIGHT, s.restAngle(), s, type));
         player.addPassenger(left);
         player.addPassenger(right);
 
@@ -191,14 +191,14 @@ final class WingInstance {
             flapTick = 0; // sofort auf neues Tempo umschalten
         }
         int period = flying ? s.flyingFlapPeriodTicks() : s.flapPeriodTicks();
-        float amplitude = flying ? s.flyingFlapAmplitude() : s.flapAmplitude();
+        float amplitude = (flying ? s.flyingFlapAmplitude() : s.flapAmplitude()) * type.flapFactor();
         int half = Math.max(1, period / 2);
 
         if (flapTick % half == 0) {
             flapClosed = !flapClosed;
             float angle = s.restAngle() + (flapClosed ? amplitude : 0f);
-            applyAnimated(left, transformation(Side.LEFT, angle, s), half);
-            applyAnimated(right, transformation(Side.RIGHT, angle, s), half);
+            applyAnimated(left, transformation(Side.LEFT, angle, s, type), half);
+            applyAnimated(right, transformation(Side.RIGHT, angle, s, type), half);
         }
         flapTick++;
     }
@@ -219,7 +219,8 @@ final class WingInstance {
      * dreht Items um 180 Grad, daher zeigt der "linke" Modell-Fluegel (+X im Modell) im
      * Entity-Raum nach -X. Hinten ist im Entity-Raum -Z (Spieler schaut bei Yaw 0 nach +Z).
      */
-    static Transformation transformation(Side side, float angleDeg, WingSettings s) {
+    static Transformation transformation(Side side, float angleDeg, WingSettings s, WingType type) {
+        float scale = type.scale() > 0 ? type.scale() : s.scale();
         float sweepSign = side == Side.LEFT ? -1f : 1f;
         if (s.invertSweep()) {
             sweepSign = -sweepSign;
@@ -229,7 +230,7 @@ final class WingInstance {
         return new Transformation(
                 new Vector3f(x, s.offsetY(), s.offsetZ()),
                 rotation,
-                new Vector3f(s.scale(), s.scale(), s.scale()),
+                new Vector3f(scale, scale, scale),
                 new Quaternionf());
     }
 

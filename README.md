@@ -3,8 +3,8 @@
 Flügel und eigene Menüs für dein Minecraft-Netzwerk, **ohne Client-Mods**: Alles läuft über ein
 Server-Resource-Pack, das der Spieler beim Joinen automatisch bekommt.
 
-- **Flügel** (Engel, Dämon, Fee) als 3D-Modelle am Rücken, mit Flügelschlag-Animation
-  (beim Fliegen/Elytra schneller)
+- **6 Flügel im Anime-Stil** als detaillierte 3D-Modelle (bis zu 84 Elemente pro Flügel) mit
+  Flügelschlag-Animation und leuchtenden Teilen: Seraph, Gefallener Engel, Phönix, Dämon, Fee, Mecha
 - **Garderobe** (`/garderobe`) mit komplett eigenem Hintergrundbild und eigenen Icons
 - **Netzwerkweit ohne Datenbank**: Das BungeeCord-Plugin speichert, wer welche Flügel trägt
 - **Kein eigener Webserver nötig**: Das Pack liegt bei einem kostenlosen Host (z. B. mc-packs.net)
@@ -38,6 +38,8 @@ Bungee-JAR in den Proxy. Nur pullen, ohne zu kopieren, geht so:
 cd C:\Server\netzwerk-cosmetics
 git pull
 ```
+
+![Alle Flügel](docs/fluegel.png)
 
 ## Dateien
 
@@ -121,16 +123,21 @@ Die Platzhalter-Grafiken kannst du mit `python3 tools/generate_assets.py` neu er
 | `/cosmeticsadmin pack [spieler]` | `cosmetics.admin` | Pack erneut senden |
 | – | `cosmetics.wings.<id>` | Flügel freischalten (`cosmetics.wings.*` = alle) |
 
-## Neue Flügel hinzufügen
+## Flügel bearbeiten / neue Flügel
 
-1. Textur `resourcepack/assets/cosmetics/textures/item/wings/<id>.png` (32×32, Flügelwurzel links)
-   und Icon `<id>_icon.png` (16×16) anlegen.
-2. Modelle `models/item/wings/<id>_left.json`, `<id>_right.json`, `<id>_icon.json` und die
-   Item-Definitionen in `items/wings/` anlegen (von `angel` kopieren und den Namen ändern).
-3. Eintrag unter `wings:` in der `config.yml`, Permission in `plugin.yml`, neu bauen, Pack neu hochladen.
+Alle Flügel werden per Skript erzeugt (`tools/wings.py`): Federn, Membranen und Energieklingen sind einzelne
+3D-Elemente mit freien Drehwinkeln und `light_emission` für leuchtende Teile (geht ab 26.x).
 
-Eigene 3D-Modelle aus Blockbench funktionieren genauso: Die Flügelwurzel muss bei `[8, 8, 8]` liegen
-(das ist der Drehpunkt für die Animation).
+```bash
+python3 tools/generate_assets.py      # Pack neu erzeugen (Pillow + numpy)
+python3 tools/preview.py angel demon  # Vorschau -> build/preview/
+```
+
+Neuen Flügel anlegen: Stil in `WINGS` in `tools/wings.py` eintragen, Skript laufen lassen, in der `config.yml`
+unter `wings:` eintragen (optional `scale` und `flap`) und die Permission in `plugin.yml` ergänzen.
+
+Eigene Blockbench-Modelle gehen auch: als `resourcepack/assets/cosmetics/models/item/wings/<id>_left.json`
+bzw. `_right.json` exportieren (Format „Java Item“), Flügelwurzel bei `[8, 8, 8]`. Höheres Z = beim Spieler außen.
 
 ## Feintuning
 
@@ -142,6 +149,8 @@ nach hinten, `invert-sweep: true` setzen.
 
 - Kompiliert gegen Paper-API 26.3 und BungeeCord-API ohne Warnungen.
 - Auf einem echten Paper-26.3-Server gestartet: Plugin lädt, Speicher und Pack-Auslieferung funktionieren.
-- Asset-Formate (Item-Definitionen, Fonts, Atlas) mit den Original-Dateien von 26.3 abgeglichen.
+- Alle Modelle, Item-Definitionen und Fonts werden mit den **echten Parsern aus dem 26.3-Client** geprüft
+  (`tools/validate-pack.sh`).
+- Optik mit eigenem Renderer (`tools/preview.py`) vorab geprüft, der die Darstellung im Spiel nachbildet.
 - **Noch nicht im Spiel mit echtem Client getestet:** Position/Richtung der Flügel, Ausrichtung des
   Menü-Hintergrunds und die Synchronisierung über BungeeCord.
