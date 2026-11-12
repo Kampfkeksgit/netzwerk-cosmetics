@@ -35,3 +35,9 @@ permissions:
       cosmetics.wings.demon: true
       cosmetics.wings.fairy: true
       cosmetics.wings.mecha: true
+      cosmetics.wings.lava: true
+      cosmetics.wings.void: true
+      cosmetics.wings.frost: true
+      cosmetics.wings.plague: true
+      cosmetics.wings.bloodmoon: true
+      cosmetics.wings.storm: true
