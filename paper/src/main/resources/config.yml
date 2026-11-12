@@ -130,6 +130,44 @@ wings:
     flap: 0.4
     lore:
       - "<gray>Panzerrahmen mit Energieklingen."
+  lava:
+    name: "<gradient:#ffd34a:#ff5a0a:#2e2724>Lavadrache</gradient>"
+    model: "cosmetics:wings/lava"
+    permission: "cosmetics.wings.lava"
+    lore:
+      - "<gray>Erkaltetes Gestein mit gluehenden Rissen."
+      - "<gray>Von den Krallen tropft Glut."
+  void:
+    name: "<gradient:#ff7bf2:#2c1150>Schwingen der Leere</gradient>"
+    model: "cosmetics:wings/void"
+    permission: "cosmetics.wings.void"
+    lore:
+      - "<gray>Ein Sternenhimmel in der Membran,"
+      - "<gray>die Raender leuchten magenta."
+  frost:
+    name: "<gradient:#ffffff:#7ff3ff:#3c7fb5>Frostwyrm</gradient>"
+    model: "cosmetics:wings/frost"
+    permission: "cosmetics.wings.frost"
+    lore:
+      - "<gray>Halb durchsichtiges Eis mit Kristalladern."
+  plague:
+    name: "<gradient:#e6ff9a:#8dff3a:#40601f>Seuchenfluegel</gradient>"
+    model: "cosmetics:wings/plague"
+    permission: "cosmetics.wings.plague"
+    lore:
+      - "<gray>Zerfetzte Membran, giftgruen gluehend."
+  bloodmoon:
+    name: "<gradient:#ffe8dc:#ff2a3a:#720b16>Blutmond</gradient>"
+    model: "cosmetics:wings/bloodmoon"
+    permission: "cosmetics.wings.bloodmoon"
+    lore:
+      - "<gray>Silberne Knochen, ein leuchtender Halbmond."
+  storm:
+    name: "<gradient:#ffffff:#5ab8ff:#4d5668>Sturmfluegel</gradient>"
+    model: "cosmetics:wings/storm"
+    permission: "cosmetics.wings.storm"
+    lore:
+      - "<gray>Gewitterwolke mit zuckenden Blitzen."
 
 # ---------------------------------------------------------------------
 # Nachrichten (MiniMessage)

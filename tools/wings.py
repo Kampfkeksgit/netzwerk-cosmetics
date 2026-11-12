@@ -76,53 +76,73 @@ class Atlas:
 # Sprites malen
 # ---------------------------------------------------------------------------
 
-def paint_feather(w, h, pal, tip="round", asym=True, barbs=True, outline=None):
-    """Feder, Kiel oben, Spitze unten. Cel-Shading in 3-4 Toenen (Anime-Look)."""
-    a = np.zeros((h, w, 4), dtype=np.float32)
+def quant(v, steps):
+    """Auf `steps` Stufen runden -> Anime-Cel-Look, aber weicher als 3 harte Toene."""
+    return round(v * (steps - 1)) / (steps - 1)
+
+
+def edge_of(mask):
+    """Randpixel einer Maske (4er-Nachbarschaft)."""
+    m = mask
+    inner = (np.roll(m, 1, 0) & np.roll(m, -1, 0) & np.roll(m, 1, 1) & np.roll(m, -1, 1))
+    inner[0, :] = inner[-1, :] = False
+    inner[:, 0] = inner[:, -1] = False
+    return m & ~inner
+
+
+def paint_feather(w, h, pal, tip="round", asym=True, barbs=True, root_shadow=0.35, steps=6):
+    """Feder, Kiel oben, Spitze unten. Weicher Verlauf auf `steps` Stufen: Innenfahne dunkler,
+    Aussenfahne heller mit Randlicht, Wurzel im Schatten der Deckfedern, Outline aus der
+    abgedunkelten Eigenfarbe statt einheitlich dunkel."""
+    out = np.zeros((h, w, 4), dtype=np.float32)
     inside = np.zeros((h, w), dtype=bool)
-    tone = {}
+    info = {}
     for y in range(h):
         t = (y + 0.5) / h
-        hw = 0.55 + (w / 2 - 0.55) * smooth((t - 0.06) / 0.28)
-        if t > 0.70:
-            k = (t - 0.70) / 0.30
-            hw *= math.sqrt(max(0.0, 1 - k ** 2)) if tip == "round" else max(0.0, 1 - k) ** 0.75
+        hw = 0.6 + (w / 2 - 0.6) * smooth((t - 0.03) / 0.22)
+        if t > 0.66:
+            k = (t - 0.66) / 0.34
+            hw *= math.sqrt(max(0.0, 1 - k ** 2.2)) if tip == "round" else max(0.0, 1 - k) ** 0.62
         for x in range(w):
             dx = x + 0.5 - w / 2
-            lim = hw * (0.72 if (asym and dx < 0) else 1.0)
+            lim = hw * (0.7 if (asym and dx < 0) else 1.0)
             if abs(dx) <= lim:
                 inside[y, x] = True
-                tone[(y, x)] = (t, dx, lim)
-    oc = outline or pal["outline"]
-    for (y, x), (t, dx, lim) in tone.items():
+                info[(y, x)] = (t, dx, lim)
+    ramp = [pal["shade2"], pal["shade"], pal["base"], pal["light"]]
+
+    def ramp_at(v):
+        v = max(0.0, min(1.0, v)) * (len(ramp) - 1)
+        i = min(len(ramp) - 2, int(v))
+        return lerp(ramp[i], ramp[i + 1], v - i)
+
+    for (y, x), (t, dx, lim) in info.items():
         edge = any(not (0 <= y + dy < h and 0 <= x + ex < w and inside[y + dy, x + ex])
                    for dy, ex in ((0, 1), (0, -1), (1, 0), (-1, 0)))
+        across = (dx / lim + 1) / 2 if lim > 0 else 0.5
+        v = 0.30 + 0.62 * smooth(across)
+        v -= root_shadow * (1 - smooth(t / 0.38))
+        v += 0.08 * smooth((t - 0.45) / 0.3)
+        if barbs and t > 0.18 and abs(dx) > 0.7:
+            if (y * 1.0 + abs(dx) * 1.1) % 6.0 < 0.9:
+                v -= 0.09
+        c = ramp_at(quant(max(0.0, min(1.0, v)), steps))
+        if abs(dx) < 0.5 and t < 0.88:
+            c = lerp(c, pal["shaft"], 0.85 * (1 - smooth((t - 0.55) / 0.33)))
+        if "tip" in pal and t > pal.get("tip_start", 0.6):
+            ts = pal.get("tip_start", 0.6)
+            c = lerp(c, pal["tip"], quant(smooth((t - ts) / (1 - ts)), 4))
         if edge:
-            c = oc
-        else:
-            if dx < -0.5:
-                c = pal["shade"]
-            elif dx > lim - 1.6:
-                c = pal["light"]
-            else:
-                c = pal["base"]
-            if abs(dx) < 0.55 and t < 0.9:
-                c = pal["shaft"]
-            if barbs and t > 0.2 and abs(dx) > 0.6:
-                phase = (y + abs(dx) * 0.9) % 7.0
-                if phase < 0.9:
-                    c = lerp(c, pal["shade2"], 0.22)
-            if t < 0.3:
-                c = lerp(c, pal["shade2"], (0.3 - t) / 0.3 * 0.55)
-            if "tip" in pal and t > pal.get("tip_start", 0.6):
-                c = lerp(c, pal["tip"], ((t - pal.get("tip_start", 0.6)) / (1 - pal.get("tip_start", 0.6))) ** 1.1)
-        a[y, x, :3] = c
-        a[y, x, 3] = 255
-    return Image.fromarray(a.astype(np.uint8), "RGBA"), inside
+            c = lerp(c, pal["outline"], 0.72)
+            if dx > 0 and 0.2 < t < 0.85:
+                c = lerp(pal["light"], pal["outline"], 0.35)
+        out[y, x, :3] = c
+        out[y, x, 3] = 255
+    return Image.fromarray(out.astype(np.uint8), "RGBA"), inside
 
 
-def paint_glow(mask, color, start=0.55, edge=True, alpha=210):
-    """Leucht-Ueberlagerung: Rand + Spitzenbereich einer Feder."""
+def paint_glow(mask, color, start=0.55, alpha=210):
+    """Leucht-Overlay einer Feder: weicher Anstieg zur Spitze + Saum, halbtransparent."""
     h, w = mask.shape
     out = np.zeros((h, w, 4), dtype=np.uint8)
     for y in range(h):
@@ -132,33 +152,38 @@ def paint_glow(mask, color, start=0.55, edge=True, alpha=210):
                 continue
             is_edge = any(not (0 <= y + dy < h and 0 <= x + ex < w and mask[y + dy, x + ex])
                           for dy, ex in ((0, 1), (0, -1), (1, 0), (-1, 0)))
-            k = 0.0
-            if t > start:
-                k = ((t - start) / (1 - start)) ** 1.3
-            if edge and is_edge and t > 0.25:
-                k = max(k, 0.85)
-            if k > 0.12:
+            k = quant(smooth((t - start) / (1 - start)), 5) if t > start else 0.0
+            if is_edge and t > 0.3:
+                k = max(k, 0.55 + 0.4 * smooth((t - 0.3) / 0.5))
+            if k > 0.1:
                 out[y, x, :3] = color
                 out[y, x, 3] = int(alpha * min(1.0, k))
     return Image.fromarray(out, "RGBA")
 
 
-def paint_scallops(w, h, pal, trim=None):
-    """Band aus kleinen Deckfedern (fuer den Fluegelarm)."""
-    img = Image.new("RGBA", (w * 4, h * 4), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.rectangle([0, 0, w * 4, h * 4 * 0.45], fill=pal["base"] + (255,))
-    for row, (yy, col) in enumerate(((0.35, pal["light"]), (0.62, pal["base"]))):
+def paint_arm_band(w, h, pal, trim=None):
+    """Bugfedern als Band: drei Reihen kleiner Schuppen, Kante oben im Trim-Ton."""
+    S = 4
+    img = np.zeros((h * S, w * S, 4), dtype=np.float32)
+    yy, xx = np.mgrid[0:h * S, 0:w * S]
+    img[..., :3] = pal["base"]
+    img[..., 3] = 255
+    rows = [(0.30, pal["light"], 0.0), (0.55, pal["base"], 1.5), (0.80, pal["shade"], 0.75)]
+    for cy_f, col, off in rows:
         for i in range(-1, w // 3 + 2):
-            cx = (i * 3 + (1.5 if row else 0)) * 4
-            cy = h * 4 * yy
-            d.ellipse([cx - 7, cy - 9, cx + 7, cy + 9], fill=col + (255,), outline=pal["outline"] + (255,), width=3)
-            d.line([cx, cy - 6, cx, cy + 5], fill=pal["shade"] + (255,), width=2)
+            cx = (i * 3 + off) * S
+            cy = h * S * cy_f
+            d = ((xx - cx) / (1.6 * S)) ** 2 + ((yy - cy) / (2.3 * S)) ** 2
+            m = d <= 1
+            img[m, :3] = col
+            ring = (d > 0.62) & m
+            img[ring, :3] = lerp(col, pal["outline"], 0.55)
     if trim:
-        d.rectangle([0, 0, w * 4, 6], fill=trim + (255,))
-    small = img.resize((w, h), Image.LANCZOS)
+        img[: int(1.2 * S), :, :3] = trim
+        img[int(1.2 * S): int(1.6 * S), :, :3] = lerp(trim, pal["outline"], 0.4)
+    small = Image.fromarray(img.astype(np.uint8), "RGBA").resize((w, h), Image.BOX)
     arr = np.asarray(small).copy()
-    arr[..., 3] = np.where(arr[..., 3] > 100, 255, 0)
+    arr[..., 3] = 255
     return Image.fromarray(arr, "RGBA")
 
 
@@ -290,18 +315,19 @@ def mirror(model: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 ARM = [(8.6, 9.6), (11.8, 17.2), (16.8, 22.0), (23.0, 18.8)]
-# Hinterkante als quadratische Bezier-Kurve: Koerper -> Bogen unten -> Fluegelspitze
-TRAIL = [(9.2, -3.0), (17.0, -19.0), (30.5, 6.5)]
+# Hinterkante als kubische Bezier-Kurve (S-Form): Koerper -> Bogen unten -> Fluegelspitze
+TRAIL = [(9.0, -2.4), (12.5, -15.5), (24.0, -15.0), (31.4, 3.0)]
 _TRAIL_PTS = None
 
 
-def trail_points(n=400):
+def trail_points(n=500):
     global _TRAIL_PTS
     if _TRAIL_PTS is None:
-        (ax, ay), (cx, cy), (bx, by) = TRAIL
+        (ax, ay), (b1x, b1y), (b2x, b2y), (cx, cy) = TRAIL
         t = np.linspace(0, 1, n)
-        _TRAIL_PTS = np.stack([(1 - t) ** 2 * ax + 2 * (1 - t) * t * cx + t ** 2 * bx,
-                               (1 - t) ** 2 * ay + 2 * (1 - t) * t * cy + t ** 2 * by], axis=1)
+        u = 1 - t
+        _TRAIL_PTS = np.stack([u ** 3 * ax + 3 * u * u * t * b1x + 3 * u * t * t * b2x + t ** 3 * cx,
+                               u ** 3 * ay + 3 * u * u * t * b1y + 3 * u * t * t * b2y + t ** 3 * cy], axis=1)
     return _TRAIL_PTS
 
 
@@ -335,37 +361,44 @@ def curl_at(s):
 
 
 def angle_at(s):
-    """Faecherwinkel der Federn entlang des Arms (0 = senkrecht nach unten)."""
-    if s < 2.0:
-        return -8 + 14 * (s / 2.0)
-    return 6 + 34 * ((s - 2.0) / 1.0) ** 1.15
+    """Faecherwinkel (0 = senkrecht nach unten): innen leicht nach innen, zur Spitze weit
+    aufgefaechert -> spitz zulaufende Hand."""
+    if s < 1.8:
+        return -10 + 15 * smooth(s / 1.8)
+    return 5 + 44 * ((s - 1.8) / 1.2) ** 1.25
 
 
 # ---------------------------------------------------------------------------
 # Feder-Fluegel (Seraph, Gefallener Engel, Phoenix)
 # ---------------------------------------------------------------------------
 
+# Basis-Z der Federlagen (vor curl). Bewusst weit auseinander -> sichtbare Tiefe zwischen den Lagen.
+Z_SECONDARY = 7.55
+Z_PRIMARY = 7.75
+Z_GREATER = 8.55
+Z_MEDIAN = 9.25
+Z_LESSER = 9.85
+
+
 def feathered_wing(wing_id, style, tex_dir: Path):
-    atlas = Atlas("feathers", 128, 128)
+    atlas = Atlas("feathers", 256, 256)
     pal_main, pal_cov = style["feather"], style.get("covert", style["feather"])
-    uv = {}
-    masks = {}
+    tip = style.get("tip", "round")
+    uv, masks = {}, {}
+
+    def add(key, res):
+        img, m = res
+        uv[key] = atlas.add(key, img)
+        masks[key] = m
+
     for i in range(3):
-        img, m = paint_feather(9, 48, pal_main, tip=style.get("tip", "round"))
-        uv[f"p{i}"] = atlas.add(f"p{i}", img)
-        masks[f"p{i}"] = m
+        add(f"p{i}", paint_feather(12, 64, pal_main, tip=tip, root_shadow=0.42))
     for i in range(2):
-        img, m = paint_feather(9, 44, pal_main, tip="round", asym=False)
-        uv[f"s{i}"] = atlas.add(f"s{i}", img)
-        masks[f"s{i}"] = m
-    img, m = paint_feather(8, 20, pal_cov, tip="round", asym=False, barbs=style.get("covert_barbs", True),
-                           outline=style.get("covert_outline"))
-    uv["c"] = atlas.add("c", img)
-    masks["c"] = m
-    img, m = paint_feather(7, 12, pal_cov, tip="round", asym=False, barbs=False, outline=style.get("covert_outline"))
-    uv["m"] = atlas.add("m", img)
-    masks["m"] = m
-    uv["arm"] = atlas.add("arm", paint_scallops(32, 9, pal_cov, trim=style.get("trim")))
+        add(f"s{i}", paint_feather(12, 58, pal_main, tip="round", asym=False, root_shadow=0.45))
+    add("c", paint_feather(10, 26, pal_cov, tip="round", asym=False,
+                           barbs=style.get("covert_barbs", True), root_shadow=0.3))
+    add("m", paint_feather(9, 16, pal_cov, tip="round", asym=False, barbs=False, root_shadow=0.25))
+    uv["arm"] = atlas.add("arm", paint_arm_band(36, 10, pal_cov, trim=style.get("trim")))
     glow = style.get("glow")
     if glow:
         for key in ("p0", "s0", "c"):
@@ -379,72 +412,82 @@ def feathered_wing(wing_id, style, tex_dir: Path):
     t = b.tex("feathers", atlas.ref(wing_id))
     g = glow and glow.get("emission", 15)
 
-    # Primaerfedern (Hand)
-    for i in range(10):
-        f = i / 9
-        s = 2.0 + f
+    # Primaerfedern (Hand): Schindel-Staffelung, aeussere liegt oben, Spitze verlaengert
+    n = 12
+    for i in range(n):
+        f = i / (n - 1)
+        s = 1.95 + 1.05 * f
         rx, ry = arm_at(s)
-        length = length_to_trail((rx, ry - 0.4), angle_at(s)) + 0.6
-        z = 8.0 + curl_at(s) - 0.03 * i
-        args = dict(root=(rx, ry - 0.4), length=length, width=3.7, angle_z=angle_at(s), twist=-12 * f, curl=9 * f)
+        root = (rx, ry - 0.5)
+        ang = angle_at(s)
+        length = length_to_trail(root, ang) + 0.9 + 1.6 * smooth((f - 0.6) / 0.4)
+        z = Z_PRIMARY + curl_at(s) + 0.045 * i
+        args = dict(root=root, length=length, width=4.1, angle_z=ang, twist=-14 * f, curl=10 * f)
         b.feather(f"primary_{i}", z=z, tex=t, uv=uv[f"p{i % 3}"], **args)
         if glow and glow.get("primaries", True):
-            b.feather(f"primary_{i}_glow", z=z + 0.09, tex=t, uv=uv["gp0"], emission=g, **args)
-    # Sekundaerfedern (Unterarm + Oberarm)
-    for i in range(12):
-        f = i / 11
-        s = 0.1 + 1.9 * f
+            b.feather(f"primary_{i}_glow", z=z + 0.085, tex=t, uv=uv["gp0"], emission=g, **args)
+    # Sekundaerfedern (Arm)
+    n = 14
+    for i in range(n):
+        f = i / (n - 1)
+        s = 0.05 + 1.95 * f
         rx, ry = arm_at(s)
-        ang = angle_at(s) - 3
-        length = length_to_trail((rx, ry - 0.6), ang)
-        z = 7.9 + curl_at(s)
-        args = dict(root=(rx, ry - 0.6), length=length, width=3.7, angle_z=ang, twist=-5 * f, curl=4 * f)
+        root = (rx, ry - 0.7)
+        ang = angle_at(s) - 2
+        length = length_to_trail(root, ang) + 0.3
+        z = Z_SECONDARY + curl_at(s) + 0.04 * (n - 1 - i)
+        args = dict(root=root, length=length, width=4.0, angle_z=ang, twist=-5 * f, curl=4 * f)
         b.feather(f"secondary_{i}", z=z, tex=t, uv=uv[f"s{i % 2}"], **args)
         if glow and glow.get("secondaries", False):
-            b.feather(f"secondary_{i}_glow", z=z + 0.09, tex=t, uv=uv["gs0"], emission=g, **args)
+            b.feather(f"secondary_{i}_glow", z=z + 0.085, tex=t, uv=uv["gs0"], emission=g, **args)
     # Grosse Deckfedern
-    for i in range(14):
-        f = i / 13
-        s = 0.25 + 2.65 * f
+    n = 15
+    for i in range(n):
+        f = i / (n - 1)
+        s = 0.2 + 2.7 * f
         rx, ry = arm_at(s)
-        length = max(6.5, 0.36 * length_to_trail((rx, ry - 0.8), angle_at(s) * 0.85))
-        z = 8.45 + curl_at(s)
-        args = dict(root=(rx, ry - 0.8), length=length, width=3.2, angle_z=angle_at(s) * 0.85, twist=-6 * f, curl=5 * f)
+        root = (rx, ry - 0.8)
+        ang = angle_at(s) * 0.85
+        length = max(7.0, 0.4 * length_to_trail(root, ang))
+        z = Z_GREATER + curl_at(s) + 0.03 * i
+        args = dict(root=root, length=length, width=3.5, angle_z=ang, twist=-6 * f, curl=5 * f)
         b.feather(f"covert_{i}", z=z, tex=t, uv=uv["c"], **args)
         if glow and glow.get("coverts", False):
-            b.feather(f"covert_{i}_glow", z=z + 0.09, tex=t, uv=uv["gc"], emission=g, **args)
+            b.feather(f"covert_{i}_glow", z=z + 0.085, tex=t, uv=uv["gc"], emission=g, **args)
     # Mittlere Deckfedern
-    for i in range(13):
-        f = i / 12
-        s = 0.15 + 2.6 * f
+    n = 14
+    for i in range(n):
+        f = i / (n - 1)
+        s = 0.12 + 2.65 * f
         rx, ry = arm_at(s)
-        b.feather(f"median_{i}", root=(rx, ry - 0.3),
-                  length=max(4.2, 0.2 * length_to_trail((rx, ry - 0.3), angle_at(s) * 0.7)), width=2.8,
-                  angle_z=angle_at(s) * 0.7, z=8.9 + curl_at(s), tex=t, uv=uv["m"], twist=-4 * f, curl=3 * f)
+        root = (rx, ry - 0.35)
+        ang = angle_at(s) * 0.7
+        b.feather(f"median_{i}", root=root, length=max(4.6, 0.22 * length_to_trail(root, ang)), width=3.0,
+                  angle_z=ang, z=Z_MEDIAN + curl_at(s) + 0.025 * i, tex=t, uv=uv["m"],
+                  twist=-4 * f, curl=3 * f)
     # Arm (kleine Deckfedern als Band)
     for k in range(3):
-        s0, s1 = k, k + 1
-        (x0, y0), (x1, y1) = arm_at(s0), arm_at(s1)
-        zc = 9.25 + (curl_at(s0) + curl_at(s1)) / 2
-        b.segment(f"arm_{k}", (x0, y0 + 0.2), (x1, y1 + 0.2), 2.6, zc - 0.45, zc + 0.45, t, uv["arm"],
+        (x0, y0), (x1, y1) = arm_at(k), arm_at(k + 1)
+        zc = Z_LESSER + (curl_at(k) + curl_at(k + 1)) / 2
+        b.segment(f"arm_{k}", (x0, y0 + 0.25), (x1, y1 + 0.25), 2.8, zc - 0.45, zc + 0.45, t, uv["arm"],
                   emission=style.get("arm_emission", 0))
     # Glut / Funken
     if style.get("embers"):
         rng = np.random.default_rng(7)
-        for i in range(10):
-            s = 1.6 + 1.4 * rng.random()
+        for i in range(12):
+            s = 1.5 + 1.5 * rng.random()
             rx, ry = arm_at(s)
             ex = rx + rng.uniform(-1, 3)
-            ey = ry - rng.uniform(8, 17)
-            ez = 8.6 + curl_at(s) + rng.uniform(0.2, 1.2)
-            sz = rng.uniform(0.35, 0.6)
+            ey = ry - rng.uniform(9, 19)
+            ez = Z_MEDIAN + curl_at(s) + rng.uniform(0.0, 1.4)
+            sz = rng.uniform(0.3, 0.6)
             if -16 < ey - sz and ex + sz < 32:
                 b.cuboid(f"ember_{i}", (ex, ey, ez), (ex + sz, ey + sz, ez + sz), t, uv["ember"], emission=15)
     return b.model()
 
 
 # ---------------------------------------------------------------------------
-# Daemon (Membran)
+# Daemon (Membran: Daemon und alle weiteren Membran-Fluegel)
 # ---------------------------------------------------------------------------
 
 DEMON_S, DEMON_E, DEMON_W = (8.4, 10.0), (12.0, 18.2), (16.4, 22.6)
@@ -452,6 +495,7 @@ DEMON_TIPS = [(28.8, 21.4), (30.6, 11.0), (26.6, 1.0), (18.8, -4.4)]
 DEMON_BODY = (8.6, 0.6)
 CANVAS = (8.0, -8.0, 32.0, 24.0)  # x0, y0, x1, y1 der Membran-Ebene
 PPU = 4  # Pixel pro Modell-Einheit
+MEM_Z = 7.95  # Membran-Ebene (vor der Woelbung)
 
 
 def to_px(p):
@@ -471,104 +515,332 @@ def scallop(a, b, toward, depth=0.28, n=8):
     return pts
 
 
+def _toward(b):
+    return DEMON_W if b != DEMON_BODY else DEMON_E
+
+
 def demon_outline():
     pts = [DEMON_S, DEMON_E, DEMON_W, DEMON_TIPS[0]]
     chain = DEMON_TIPS + [DEMON_BODY]
     for a, b in zip(chain, chain[1:]):
-        pts += scallop(a, b, DEMON_W if b != DEMON_BODY else DEMON_E, depth=0.3)
+        pts += scallop(a, b, _toward(b), depth=0.3, n=12)
         pts.append(b)
     return pts
 
 
-def membrane_wing(wing_id, style, tex_dir: Path):
-    W = int((CANVAS[2] - CANVAS[0]) * PPU)
-    H = int((CANVAS[3] - CANVAS[1]) * PPU)
-    outline = [to_px(p) for p in demon_outline()]
-    mask_img = Image.new("L", (W, H), 0)
-    ImageDraw.Draw(mask_img).polygon(outline, fill=255)
-    mask = np.asarray(mask_img) > 127
-
-    # Membran: Verlauf vom Handgelenk nach aussen + Falten
-    yy, xx = np.mgrid[0:H, 0:W]
-    wx, wy = to_px(DEMON_W)
-    dist = np.hypot(xx - wx, yy - wy) / (W * 1.05)
-    c0, c1 = np.array(style["membrane_inner"], float), np.array(style["membrane_outer"], float)
-    col = c0[None, None] * (1 - dist[..., None]) + c1[None, None] * dist[..., None]
-    angle = np.arctan2(yy - wy, xx - wx)
-    folds = (np.sin(angle * 38) > 0.82) & (dist > 0.12)
-    col[folds] = col[folds] * 0.72
-    # Cel-Schatten unten
-    col[dist > 0.62] *= 0.82
-    mem = np.zeros((H, W, 4), np.uint8)
-    mem[..., :3] = np.clip(col, 0, 255)
-    mem[..., 3] = np.where(mask, 255, 0)
-    mem_img = Image.fromarray(mem, "RGBA")
-    d = ImageDraw.Draw(mem_img)
-    d.line(outline + [outline[0]], fill=style["edge"] + (255,), width=2)
-
-    # Leuchtende Adern
-    veins = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    vd = ImageDraw.Draw(veins)
-    rng = np.random.default_rng(3)
+def membrane_panels():
+    """Die vier Membranfelder zwischen den Fingern (vom Handgelenk aus). Zusammen = Umriss."""
     chain = DEMON_TIPS + [DEMON_BODY]
+    panels = []
     for a, b in zip(chain, chain[1:]):
-        mid = scallop(a, b, DEMON_W, depth=0.3)[3]
-        p0 = (DEMON_W[0] + (a[0] - DEMON_W[0]) * 0.15, DEMON_W[1] + (a[1] - DEMON_W[1]) * 0.15)
-        pts = [p0]
-        for k in range(1, 6):
-            t = k / 5
-            px = p0[0] + (mid[0] - p0[0]) * t * 0.88 + rng.uniform(-0.5, 0.5)
-            py = p0[1] + (mid[1] - p0[1]) * t * 0.88 + rng.uniform(-0.5, 0.5)
-            pts.append((px, py))
-        vd.line([to_px(p) for p in pts], fill=style["vein"] + (255,), width=2)
-        bx, by = pts[3]
-        vd.line([to_px((bx, by)), to_px((bx + rng.uniform(-2, 2), by - rng.uniform(1, 3)))],
-                fill=style["vein"] + (255,), width=1)
-    glow = veins.filter(ImageFilter.GaussianBlur(1.6))
-    veins = Image.alpha_composite(glow, veins)
-    va = np.asarray(veins).copy()
-    va[..., 3] = np.where(mask, va[..., 3], 0)
-    veins = Image.fromarray(va, "RGBA")
+        pts = [DEMON_W, a] + scallop(a, b, _toward(b), depth=0.3, n=12) + [b]
+        if b == DEMON_BODY:
+            pts += [DEMON_S, DEMON_E]
+        panels.append(pts)
+    return panels
 
-    membrane = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    membrane.paste(mem_img, (0, 0))
-    membrane.save(tex_dir / "membrane.png")
-    glow_tex = Image.new("RGBA", (128, 128), (0, 0, 0, 0))
-    glow_tex.paste(veins, (0, 0))
-    glow_tex.save(tex_dir / "veins.png")
 
-    parts = Atlas("parts", 32, 32)
-    uv_bone = parts.add("bone", paint_flat(16, 4, style["bone_light"], style["bone_dark"], outline=style["edge"]))
+def bone_lines():
+    lines = [(DEMON_S, DEMON_E), (DEMON_E, DEMON_W)]
+    lines += [(DEMON_W, tip) for tip in DEMON_TIPS]
+    return lines
+
+
+def _seg_dist(px, py, a, b):
+    """Abstand jedes Pixels zur Strecke a-b (in Pixeln)."""
+    ax, ay = to_px(a)
+    bx, by = to_px(b)
+    vx, vy = bx - ax, by - ay
+    t = np.clip(((px - ax) * vx + (py - ay) * vy) / (vx * vx + vy * vy), 0, 1)
+    return np.hypot(px - (ax + t * vx), py - (ay + t * vy))
+
+
+def _poly_mask(pts, w, h):
+    m = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(m).polygon([to_px(p) for p in pts], fill=255)
+    return np.asarray(m) > 127
+
+
+def _glow_layer(layer: Image.Image, radius):
+    halo = layer.filter(ImageFilter.GaussianBlur(radius))
+    return Image.alpha_composite(halo, layer)
+
+
+def _jitter_path(p0, p1, n, amp, rng):
+    """Zickzack-/Adern-Pfad von p0 nach p1 mit seitlichem Versatz."""
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    ln = math.hypot(dx, dy) or 1
+    nx, ny = -dy / ln, dx / ln
+    pts = [p0]
+    for k in range(1, n):
+        t = k / n
+        o = rng.uniform(-amp, amp)
+        pts.append((p0[0] + dx * t + nx * o, p0[1] + dy * t + ny * o))
+    pts.append(p1)
+    return pts
+
+
+def _panel_mid(k):
+    chain = DEMON_TIPS + [DEMON_BODY]
+    a, b = chain[k], chain[k + 1]
+    return scallop(a, b, _toward(b), depth=0.3, n=8)[3]
+
+
+def paint_membrane_glow(style, w, h, mask):
+    """Leuchtmuster der Membran (eigene Ebene mit light_emission)."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rng = np.random.default_rng(style.get("seed", 3))
+    vein = style["vein"] + (255,)
+    core = style.get("vein_core", style["vein"]) + (255,)
+    pattern = style.get("pattern", "veins")
+    W_ = DEMON_W
+
+    def line(pts, col, width):
+        d.line([to_px(p) for p in pts], fill=col, width=width, joint="curve")
+
+    if pattern in ("veins", "moon"):
+        alpha = 255 if pattern == "veins" else 120
+        col = style["vein"] + (alpha,)
+        for k in range(4):
+            mid = _panel_mid(k)
+            p0 = (W_[0] + (mid[0] - W_[0]) * 0.12, W_[1] + (mid[1] - W_[1]) * 0.12)
+            end = (W_[0] + (mid[0] - W_[0]) * 0.9, W_[1] + (mid[1] - W_[1]) * 0.9)
+            main = _jitter_path(p0, end, 6, 0.45, rng)
+            line(main, col, 2)
+            for j in (2, 4):
+                bx, by = main[j]
+                ang = math.atan2(end[1] - p0[1], end[0] - p0[0]) + rng.choice([-1, 1]) * rng.uniform(0.5, 0.9)
+                ln = rng.uniform(2.0, 3.6)
+                line(_jitter_path((bx, by), (bx + math.cos(ang) * ln, by + math.sin(ang) * ln), 3, 0.25, rng), col, 1)
+    if pattern == "cracks":
+        # Netz aus Rissen, die von den Knochen ausgehen
+        for a, b in bone_lines()[1:]:
+            for j in range(3):
+                t = rng.uniform(0.2, 0.85)
+                p = (a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)
+                ang = rng.uniform(0, 2 * math.pi)
+                pts = [p]
+                for _ in range(rng.integers(3, 6)):
+                    ang += rng.uniform(-0.9, 0.9)
+                    ln = rng.uniform(1.4, 3.0)
+                    pts.append((pts[-1][0] + math.cos(ang) * ln, pts[-1][1] + math.sin(ang) * ln))
+                line(pts, vein, 3)
+                line(pts, core, 1)
+    if pattern == "lightning":
+        for k in range(4):
+            mid = _panel_mid(k)
+            p0 = (W_[0] + (mid[0] - W_[0]) * 0.1, W_[1] + (mid[1] - W_[1]) * 0.1)
+            bolt = _jitter_path(p0, mid, 7, 1.1, rng)
+            line(bolt, vein, 3)
+            line(bolt, core, 1)
+            bx, by = bolt[3]
+            br = _jitter_path((bx, by), (bx + rng.uniform(-3, 3), by - rng.uniform(2, 4)), 3, 0.6, rng)
+            line(br, vein, 2)
+            line(br, core, 1)
+    if pattern == "frost":
+        # Kristalline Aeste entlang der Felder, Seitenaeste im 60-Grad-Winkel
+        for k in range(4):
+            mid = _panel_mid(k)
+            p0 = (W_[0] + (mid[0] - W_[0]) * 0.15, W_[1] + (mid[1] - W_[1]) * 0.15)
+            line([p0, mid], vein, 1)
+            ang = math.atan2(mid[1] - p0[1], mid[0] - p0[0])
+            for t in (0.3, 0.5, 0.7, 0.85):
+                bx, by = p0[0] + (mid[0] - p0[0]) * t, p0[1] + (mid[1] - p0[1]) * t
+                ln = 2.6 * (1 - t) + 0.8
+                for s in (-1, 1):
+                    a2 = ang + s * math.radians(60)
+                    line([(bx, by), (bx + math.cos(a2) * ln, by + math.sin(a2) * ln)], core, 1)
+    if pattern == "stars":
+        px = rng.integers(0, w, 900)
+        py = rng.integers(0, h, 900)
+        ok = mask[py, px]
+        px, py = px[ok][:85], py[ok][:85]
+        for i, (x, y) in enumerate(zip(px, py)):
+            c = core if i % 3 else vein
+            if i % 9 == 0:
+                d.line([(x - 1, y), (x + 1, y)], fill=c)
+                d.line([(x, y - 1), (x, y + 1)], fill=c)
+            else:
+                d.point([(x, y)], fill=c)
+    if pattern == "moon":
+        cx, cy, r = 23.2, 13.9, 2.1
+        disc = Image.new("L", (w, h), 0)
+        dd = ImageDraw.Draw(disc)
+        (mx, my), rp = to_px((cx, cy)), r * PPU
+        dd.ellipse([mx - rp, my - rp, mx + rp, my + rp], fill=255)
+        cut = rp * 0.78
+        ox, oy = mx + rp * 0.45, my - rp * 0.3
+        dd.ellipse([ox - cut, oy - cut, ox + cut, oy + cut], fill=0)
+        moon = Image.new("RGBA", (w, h), style["moon"] + (255,))
+        moon.putalpha(disc)
+        halo = Image.new("RGBA", (w, h), style.get("moon_glow", style["vein"]) + (255,))
+        halo.putalpha(disc.filter(ImageFilter.GaussianBlur(3)))
+        img = Image.alpha_composite(img, halo)
+        img = Image.alpha_composite(img, moon)
+        d = ImageDraw.Draw(img)
+    img = _glow_layer(img, style.get("glow_radius", 1.6))
+    if style.get("rim_glow"):
+        edge = edge_of(mask)
+        band = edge | edge_of(mask & ~edge)
+        rim = np.zeros((h, w, 4), np.uint8)
+        rim[band, :3] = style["rim_glow"]
+        rim[band, 3] = 150
+        rim[edge, 3] = 255
+        img = Image.alpha_composite(img, Image.fromarray(rim, "RGBA"))
+    return img
+
+
+def paint_membrane_base(style, w, h, mask):
+    yy, xx = np.mgrid[0:h, 0:w].astype(float)
+    wx, wy = to_px(DEMON_W)
+    dist = np.clip(np.hypot(xx - wx, yy - wy) / (w * 1.05), 0, 1)
+    q = np.round(dist * 5) / 5
+    c0, c1 = np.array(style["membrane_inner"], float), np.array(style["membrane_outer"], float)
+    col = c0[None, None] * (1 - q[..., None]) + c1[None, None] * q[..., None]
+    # Membran haengt zwischen den Knochen durch: an den Knochen dunkler, Feldmitte heller
+    db = np.min([_seg_dist(xx, yy, a, b) for a, b in bone_lines()], axis=0) / PPU
+    lift = np.round(np.clip(db / 3.2, 0, 1) * 3) / 3
+    col *= (0.74 + 0.30 * lift)[..., None]
+    # weiche Falten strahlenfoermig vom Handgelenk
+    ang = np.arctan2(yy - wy, xx - wx)
+    fold = np.clip((np.sin(ang * 38) - 0.7) / 0.3, 0, 1) * (dist > 0.12)
+    col *= (1 - 0.16 * np.round(fold * 2) / 2)[..., None]
+    edge = edge_of(mask)
+    inner_rim = edge_of(mask & ~edge)
+    col[inner_rim] *= 0.8
+    col[edge] = style["edge"]
+    out = np.zeros((h, w, 4), np.uint8)
+    out[..., :3] = np.clip(col, 0, 255)
+    out[..., 3] = np.where(mask, style.get("alpha", 255), 0)
+    out[edge, 3] = 255
+    return Image.fromarray(out, "RGBA")
+
+
+def paint_bone(w, h, light, dark, edge):
+    img = np.zeros((h, w, 4), np.uint8)
+    for y in range(h):
+        t = y / max(1, h - 1)
+        c = lerp(light, dark, quant(t, 4))
+        if y == 0:
+            c = lerp(light, (255, 255, 255), 0.3)
+        if y == h - 1:
+            c = lerp(dark, edge, 0.6)
+        img[y, :, :3] = [int(v) for v in c]
+    img[..., 3] = 255
+    img[:, 0, :3] = img[:, -1, :3] = [int(v) for v in lerp(dark, edge, 0.5)]
+    return Image.fromarray(img, "RGBA")
+
+
+def membrane_wing(wing_id, style, tex_dir: Path):
+    w = int((CANVAS[2] - CANVAS[0]) * PPU)
+    h = int((CANVAS[3] - CANVAS[1]) * PPU)
+    full = _poly_mask(demon_outline(), w, h)
+    if style.get("holes"):
+        # zerfetzte Membran: Loecher nahe der Hinterkante, Raender leuchten
+        rng = np.random.default_rng(style.get("seed", 3) + 1)
+        holes = Image.new("L", (w, h), 0)
+        hd = ImageDraw.Draw(holes)
+        for k in range(4):
+            mid = _panel_mid(k)
+            for _ in range(2):
+                t = rng.uniform(0.62, 0.86)
+                cx = DEMON_W[0] + (mid[0] - DEMON_W[0]) * t + rng.uniform(-1, 1)
+                cy = DEMON_W[1] + (mid[1] - DEMON_W[1]) * t + rng.uniform(-1, 1)
+                (px, py), r = to_px((cx, cy)), rng.uniform(1.6, 3.2)
+                hd.ellipse([px - r, py - r * 1.3, px + r, py + r * 1.3], fill=255)
+        hole = np.asarray(holes) > 127
+        full = full & ~hole
+        style = dict(style, rim_glow=style["vein"])
+    base = paint_membrane_base(style, w, h, full)
+    glow = paint_membrane_glow(style, w, h, full)
+    ga = np.asarray(glow).copy()
+    ga[..., 3] = np.where(full, ga[..., 3], 0)
+    glow = Image.fromarray(ga, "RGBA")
+
+    # Je Feld ein Ausschnitt (1 px ueberlappend gegen Naehte) im 2x2-Atlas
+    mem_atlas = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    glow_atlas = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+    panels = membrane_panels()
+    panel_uv = []
+    for k, pts in enumerate(panels):
+        pm = _poly_mask(pts, w, h)
+        pm = pm | np.roll(pm, 1, 0) | np.roll(pm, -1, 0) | np.roll(pm, 1, 1) | np.roll(pm, -1, 1)
+        pm &= full
+        ox, oy = (k % 2) * w, (k // 2) * h
+        for src, dst in ((base, mem_atlas), (glow, glow_atlas)):
+            a = np.asarray(src).copy()
+            a[..., 3] = np.where(pm, a[..., 3], 0)
+            dst.paste(Image.fromarray(a, "RGBA"), (ox, oy))
+        panel_uv.append([r2(ox * 16 / 256), r2(oy * 16 / 256), r2((ox + w) * 16 / 256), r2((oy + h) * 16 / 256)])
+    mem_atlas.save(tex_dir / "membrane.png")
+    glow_atlas.save(tex_dir / "veins.png")
+
+    parts = Atlas("parts", 64, 64)
+    uv_bone = parts.add("bone", paint_bone(16, 5, style["bone_light"], style["bone_dark"], style["edge"]))
+    uv_joint = parts.add("joint", paint_glow_dot(6, style["bone_light"], style["bone_dark"]))
     uv_claw = parts.add("claw", paint_flat(8, 4, style["claw_light"], style["claw_dark"]))
+    uv_ember = parts.add("ember", paint_glow_dot(6, (255, 255, 220), style.get("embers", style["vein"])))
     parts.img.save(tex_dir / "parts.png")
 
     b = ModelBuilder()
     tm = b.tex("membrane", f"{TEX_NS}/{wing_id}/membrane")
     tv = b.tex("veins", f"{TEX_NS}/{wing_id}/veins")
     tp = b.tex("parts", f"{TEX_NS}/{wing_id}/parts")
-    u1, v1 = r2(W * 16 / 128), r2(H * 16 / 128)
     x0, y0, x1, y1 = CANVAS
-    b.plane("membrane", x0, y0, x1, y1, 7.95, tm, [0, 0, u1, v1])
-    b.plane("veins_back", x0, y0, x1, y1, 8.08, tv, [0, 0, u1, v1], emission=style.get("vein_emission", 12), thick=0.01)
-    b.plane("veins_front", x0, y0, x1, y1, 7.91, tv, [0, 0, u1, v1], emission=style.get("vein_emission", 12), thick=0.01)
-    # Knochen
-    b.segment("bone_upper", DEMON_S, DEMON_E, 1.5, 7.3, 8.7, tp, uv_bone)
-    b.segment("bone_fore", DEMON_E, DEMON_W, 1.3, 7.4, 8.6, tp, uv_bone)
+    em = style.get("vein_emission", 12)
+    billow = style.get("billow", -0.75)  # negativ = Feld woelbt sich zum Koerper, Knochen stehen vor
+    for k, pts in enumerate(panels):
+        cx = sum(p[0] for p in pts) / len(pts) - DEMON_W[0]
+        cy = sum(p[1] for p in pts) / len(pts) - DEMON_W[1]
+        ln = math.hypot(cx, cy)
+        s = billow / ln
+        # z' ~ s * (Abstand vom Handgelenk in Feldrichtung): Rx kippt mit y, Ry mit x
+        rot = {"x": math.degrees(math.asin(max(-1, min(1, s * cy / ln)))),
+               "y": math.degrees(math.asin(max(-1, min(1, -s * cx / ln))))}
+        for name, z, tex, thick, emi in ((f"membrane_{k}", MEM_Z, tm, 0.1, 0),
+                                         (f"glow_back_{k}", MEM_Z + 0.13, tv, 0.01, em),
+                                         (f"glow_front_{k}", MEM_Z - 0.04, tv, 0.01, em)):
+            b.plane(name, x0, y0, x1, y1, z, tex, panel_uv[k], rot=rot, origin=(DEMON_W[0], DEMON_W[1], z),
+                    emission=emi, thick=thick)
+    # Knochen: Ober- und Unterarm kraeftig, Finger zweigeteilt und zur Spitze duenner
+    b.segment("bone_upper", DEMON_S, DEMON_E, 1.7, 7.2, 8.8, tp, uv_bone)
+    b.segment("bone_fore", DEMON_E, DEMON_W, 1.5, 7.3, 8.7, tp, uv_bone)
     for i, tip in enumerate(DEMON_TIPS):
-        b.segment(f"finger_{i}", DEMON_W, tip, 0.8 if i else 0.9, 7.6, 8.4, tp, uv_bone)
-    # Kralle am Handgelenk + Stacheln
+        mid = (DEMON_W[0] + (tip[0] - DEMON_W[0]) * 0.55, DEMON_W[1] + (tip[1] - DEMON_W[1]) * 0.55)
+        b.segment(f"finger_{i}_a", DEMON_W, mid, 1.0 if i == 0 else 0.9, 7.45, 8.55, tp, uv_bone)
+        b.segment(f"finger_{i}_b", mid, tip, 0.75 if i == 0 else 0.65, 7.55, 8.45, tp, uv_bone)
+        b.cuboid(f"knuckle_{i}", (mid[0] - 0.5, mid[1] - 0.5, 7.5), (mid[0] + 0.5, mid[1] + 0.5, 8.5), tp, uv_joint)
+    for name, (px, py), sz in (("joint_elbow", DEMON_E, 1.9), ("joint_wrist", DEMON_W, 1.7)):
+        b.cuboid(name, (px - sz / 2, py - sz / 2, 8.0 - sz / 2), (px + sz / 2, py + sz / 2, 8.0 + sz / 2), tp, uv_joint)
+    # Kralle am Handgelenk + Stacheln am Oberarm
+    ce = style.get("claw_emission", 0)
     wx_, wy_ = DEMON_W
-    b.segment("claw_base", (wx_, wy_), (wx_ - 0.4, wy_ + 2.4), 1.0, 7.5, 8.5, tp, uv_claw)
-    b.segment("claw_tip", (wx_ - 0.4, wy_ + 2.3), (wx_ - 1.3, wy_ + 3.6), 0.5, 7.75, 8.25, tp, uv_claw)
-    for i, s in enumerate((0.35, 0.7)):
-        px = DEMON_S[0] + (DEMON_E[0] - DEMON_S[0]) * s
-        py = DEMON_S[1] + (DEMON_E[1] - DEMON_S[1]) * s
-        b.segment(f"spike_{i}", (px, py), (px - 1.6, py + 0.9), 0.6, 7.7, 8.3, tp, uv_claw)
+    b.segment("claw_base", (wx_, wy_), (wx_ - 0.4, wy_ + 2.4), 1.0, 7.5, 8.5, tp, uv_claw, emission=ce)
+    b.segment("claw_tip", (wx_ - 0.4, wy_ + 2.3), (wx_ - 1.3, wy_ + 3.6), 0.5, 7.75, 8.25, tp, uv_claw, emission=ce)
+    for i, s_ in enumerate((0.35, 0.7)):
+        px = DEMON_S[0] + (DEMON_E[0] - DEMON_S[0]) * s_
+        py = DEMON_S[1] + (DEMON_E[1] - DEMON_S[1]) * s_
+        b.segment(f"spike_{i}", (px, py), (px - 1.6, py + 0.9), 0.6, 7.7, 8.3, tp, uv_claw, emission=ce)
+    # Krallen an den Fingerspitzen, leicht nach unten gehakt
     for i, tip in enumerate(DEMON_TIPS[:3]):
         dx, dy = tip[0] - wx_, tip[1] - wy_
         ln = math.hypot(dx, dy)
-        end = (min(31.8, tip[0] + dx / ln * 1.2), tip[1] + dy / ln * 1.2)
-        b.segment(f"tipclaw_{i}", tip, end, 0.5, 7.75, 8.25, tp, uv_claw)
+        ux, uy = dx / ln, dy / ln
+        p1 = (min(31.6, tip[0] + ux * 0.9), tip[1] + uy * 0.9)
+        p2 = (min(31.9, p1[0] + ux * 0.4 + uy * 0.5), p1[1] + uy * 0.4 - ux * 0.5)
+        b.segment(f"tipclaw_{i}", tip, p1, 0.55, 7.72, 8.28, tp, uv_claw, emission=ce)
+        b.segment(f"tipclaw_{i}_hook", p1, p2, 0.35, 7.82, 8.18, tp, uv_claw, emission=ce)
+    if style.get("embers"):
+        rng = np.random.default_rng(5)
+        for i, tip in enumerate(DEMON_TIPS[:3]):
+            ex, ey = min(31.2, tip[0] + rng.uniform(-0.4, 0.2)), tip[1] - rng.uniform(1.0, 2.2)
+            sz = rng.uniform(0.35, 0.5)
+            b.cuboid(f"ember_{i}", (ex, ey, 7.8), (ex + sz, ey + sz, 7.8 + sz), tp, uv_ember, emission=15)
+        for i in range(3):
+            ex, ey = rng.uniform(16, 27), rng.uniform(-9, -3)
+            sz = rng.uniform(0.3, 0.45)
+            b.cuboid(f"ember_fall_{i}", (ex, ey, 7.6), (ex + sz, ey + sz, 7.6 + sz), tp, uv_ember, emission=15)
     return b.model()
 
 
@@ -576,57 +848,78 @@ def membrane_wing(wing_id, style, tex_dir: Path):
 # Fee (durchscheinende Lappen)
 # ---------------------------------------------------------------------------
 
-def paint_lobe(w, h, inner, outer, edge, spots, shape="upper"):
+def paint_lobe(w, h, inner, outer, edge, spots, shape="upper", mid=None):
+    """Fluegellappen mit 3-Stufen-Verlauf (innen -> mitte -> aussen), feinen Adern, weichen
+    Glanzpunkten und hellem Innensaum. Liefert (Lappen, Leuchtrand)."""
     s = 4
-    big = Image.new("RGBA", (w * s, h * s), (0, 0, 0, 0))
-    mask = Image.new("L", (w * s, h * s), 0)
+    W_, H_ = w * s, h * s
+    mask = Image.new("L", (W_, H_), 0)
     md = ImageDraw.Draw(mask)
     if shape == "upper":
-        md.ellipse([-w * s * 0.15, h * s * 0.05, w * s * 0.98, h * s * 0.95], fill=255)
-        md.rectangle([0, h * s * 0.45, w * s * 0.1, h * s * 0.75], fill=255)
+        md.ellipse([-W_ * 0.12, H_ * 0.08, W_ * 0.96, H_ * 0.97], fill=255)
+        md.polygon([(W_ * 0.42, H_ * 0.14), (W_ * 0.99, H_ * 0.02), (W_ * 0.9, H_ * 0.42)], fill=255)
+        md.rectangle([0, H_ * 0.45, W_ * 0.1, H_ * 0.75], fill=255)
     elif shape == "lower":
-        md.ellipse([-w * s * 0.1, h * s * 0.02, w * s * 0.95, h * s * 0.98], fill=255)
+        md.ellipse([-W_ * 0.1, H_ * 0.02, W_ * 0.94, H_ * 0.9], fill=255)
     else:  # tail
-        md.ellipse([w * s * 0.1, 0, w * s * 0.9, h * s * 0.55], fill=255)
-        md.ellipse([w * s * 0.25, h * s * 0.45, w * s * 0.75, h * s * 0.99], fill=255)
+        md.ellipse([W_ * 0.12, 0, W_ * 0.88, H_ * 0.55], fill=255)
+        md.ellipse([W_ * 0.22, H_ * 0.45, W_ * 0.78, H_ * 0.99], fill=255)
+    mask = mask.filter(ImageFilter.GaussianBlur(s * 0.6))
     m = np.asarray(mask) > 127
-    yy, xx = np.mgrid[0:h * s, 0:w * s]
-    r = np.clip(np.hypot(xx / (w * s), (yy - h * s / 2) / (h * s)) * 1.25, 0, 1)
-    col = np.array(inner, float)[None, None] * (1 - r[..., None]) + np.array(outer, float)[None, None] * r[..., None]
-    arr = np.zeros((h * s, w * s, 4), np.uint8)
-    arr[..., :3] = col
-    arr[..., 3] = np.where(m, (140 + 70 * r).astype(np.uint8), 0)
+    yy, xx = np.mgrid[0:H_, 0:W_]
+    r = np.clip(np.hypot(xx / W_, (yy - H_ * 0.6) / H_) * 1.25, 0, 1)
+    rq = np.round(r * 5) / 5
+    mid = mid or lerp(inner, outer, 0.5)
+    c_in, c_mid, c_out = (np.array(c, float)[None, None] for c in (inner, mid, outer))
+    k = rq[..., None]
+    col = np.where(k < 0.5, c_in * (1 - k * 2) + c_mid * (k * 2), c_mid * (2 - k * 2) + c_out * (k * 2 - 1))
+    arr = np.zeros((H_, W_, 4), np.uint8)
+    arr[..., :3] = np.clip(col, 0, 255)
+    arr[..., 3] = np.where(m, (130 + 80 * rq).astype(np.uint8), 0)
     big = Image.fromarray(arr, "RGBA")
     d = ImageDraw.Draw(big)
-    for ang in np.linspace(-0.7, 0.7, 6):
-        d.line([(0, h * s * 0.6), (w * s * math.cos(ang), h * s * (0.6 + 0.6 * math.sin(ang)))],
-               fill=edge + (200,), width=s)
+    vein = tuple(int(v) for v in lerp(edge, outer, 0.3)) + (170,)
+    root = (0, H_ * 0.6)
+    for ang in np.linspace(-0.75, 0.75, 7):
+        pts = []
+        for t in np.linspace(0, 1, 12):
+            bend = 0.18 * math.sin(t * math.pi) * (1 if ang >= 0 else -1)
+            pts.append((root[0] + W_ * t * math.cos(ang + bend), root[1] + H_ * 0.62 * t * math.sin(ang + bend)))
+        d.line(pts, fill=vein, width=s, joint="curve")
+    spot = Image.new("RGBA", (W_, H_), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(spot)
     for (fx, fy, fr) in spots:
-        d.ellipse([fx * w * s - fr * s, fy * h * s - fr * s, fx * w * s + fr * s, fy * h * s + fr * s],
-                  fill=(255, 255, 255, 230))
+        for rr, a in ((fr * 1.8, 70), (fr * 1.2, 140), (fr * 0.6, 240)):
+            sd.ellipse([fx * W_ - rr * s, fy * H_ - rr * s, fx * W_ + rr * s, fy * H_ + rr * s],
+                       fill=(255, 255, 255, a))
+    big = Image.alpha_composite(big, spot)
     out = np.asarray(big).copy()
     out[..., 3] = np.where(m, out[..., 3], 0)
     small = Image.fromarray(out, "RGBA").resize((w, h), Image.LANCZOS)
     sa = np.asarray(small).copy()
-    sa[..., 3] = np.where(sa[..., 3] < 50, 0, sa[..., 3])
-    # Rand
+    sa[..., 3] = np.where(sa[..., 3] < 60, 0, sa[..., 3])
     alpha = sa[..., 3] > 0
-    edge_mask = alpha & ~(np.roll(alpha, 1, 0) & np.roll(alpha, -1, 0) & np.roll(alpha, 1, 1) & np.roll(alpha, -1, 1))
+    edge_mask = edge_of(alpha)
+    band = edge_of(alpha & ~edge_mask)
+    sa[band, :3] = [int(v) for v in lerp(edge, outer, 0.25)]
+    sa[edge_mask, :3] = edge
+    sa[edge_mask, 3] = 255
     rim = np.zeros_like(sa)
     rim[edge_mask, :3] = edge
     rim[edge_mask, 3] = 255
-    sa[edge_mask, :3] = edge
-    sa[edge_mask, 3] = 255
+    rim[band, :3] = edge
+    rim[band, 3] = 90
     return Image.fromarray(sa, "RGBA"), Image.fromarray(rim, "RGBA")
 
 
 def fairy_wing(wing_id, style, tex_dir: Path):
-    atlas = Atlas("lobes", 128, 128)
-    up, up_rim = paint_lobe(66, 40, style["inner"], style["outer"], style["edge"],
-                            [(0.7, 0.35, 1.2), (0.82, 0.55, 0.9), (0.55, 0.25, 0.7)], "upper")
-    lo, lo_rim = paint_lobe(46, 44, style["inner2"], style["outer2"], style["edge"],
-                            [(0.6, 0.6, 1.0), (0.45, 0.78, 0.7)], "lower")
-    tail, tail_rim = paint_lobe(14, 44, style["inner2"], style["outer"], style["edge"], [(0.5, 0.85, 0.8)], "tail")
+    atlas = Atlas("lobes", 256, 256)
+    up, up_rim = paint_lobe(132, 80, style["inner"], style["outer"], style["edge"],
+                            [(0.7, 0.35, 1.2), (0.82, 0.55, 0.9), (0.55, 0.25, 0.7), (0.9, 0.2, 0.5)], "upper",
+                            mid=style.get("mid"))
+    lo, lo_rim = paint_lobe(92, 88, style["inner2"], style["outer2"], style["edge"],
+                            [(0.6, 0.6, 1.0), (0.45, 0.78, 0.7), (0.75, 0.85, 0.5)], "lower", mid=style.get("mid2"))
+    tail, tail_rim = paint_lobe(28, 88, style["inner2"], style["outer"], style["edge"], [(0.5, 0.85, 0.8)], "tail")
     uv = {"up": atlas.add("up", up), "lo": atlas.add("lo", lo), "tail": atlas.add("tail", tail),
           "up_rim": atlas.add("up_rim", up_rim), "lo_rim": atlas.add("lo_rim", lo_rim),
           "tail_rim": atlas.add("tail_rim", tail_rim),
@@ -636,11 +929,11 @@ def fairy_wing(wing_id, style, tex_dir: Path):
     b = ModelBuilder()
     t = b.tex("lobes", atlas.ref(wing_id))
     root = (8.4, 9.6)
-    # Oberer Lappen: 22 x 13.3 Einheiten
+    # Lappen deutlich gestaffelt (Z) und unterschiedlich stark nach hinten gebogen -> Tiefe
     lobes = [
-        ("upper", (8.2, 4.4, 30.2, 15.7), 8.0, 30, 4, "up"),
-        ("lower", (8.2, -6.4, 23.5, 8.2), 8.2, 38, 6, "lo"),
-        ("tail", (10.0, -13.5, 14.6, 1.0), 8.4, 44, 10, "tail"),
+        ("upper", (8.2, 4.4, 30.2, 15.7), 7.8, 30, 4, "up"),
+        ("lower", (8.2, -6.4, 23.5, 8.2), 8.35, 38, 8, "lo"),
+        ("tail", (10.0, -13.5, 14.6, 1.0), 8.9, 44, 12, "tail"),
     ]
     for name, (x0, y0, x1, y1), z, rz, curl, key in lobes:
         rot = {"z": rz, "x": -curl, "y": -6}
@@ -648,10 +941,10 @@ def fairy_wing(wing_id, style, tex_dir: Path):
         b.plane(f"lobe_{name}_rim", x0, y0, x1, y1, z + 0.11, t, uv[key + "_rim"], rot=rot,
                 origin=(root[0], root[1], z + 0.11), emission=15, thick=0.01)
     rng = np.random.default_rng(11)
-    for i in range(9):
-        ex, ey = rng.uniform(12, 26), rng.uniform(0, 24)
-        ez = rng.uniform(8.6, 9.8)
-        sz = rng.uniform(0.3, 0.55)
+    for i in range(12):
+        ex, ey = rng.uniform(12, 27), rng.uniform(-2, 24)
+        ez = rng.uniform(8.8, 10.2)
+        sz = rng.uniform(0.22, 0.5)
         b.cuboid(f"spark_{i}", (ex, ey, ez), (ex + sz, ey + sz, ez + sz), t, uv["spark"], emission=15)
     return b.model()
 
@@ -660,32 +953,67 @@ def fairy_wing(wing_id, style, tex_dir: Path):
 # Mecha (Panzerrahmen + Energieklingen)
 # ---------------------------------------------------------------------------
 
-def paint_blade(w, h, core, edge):
+def paint_armor(w, h, light, dark, panel, accent):
+    """Panzerplatte: Verlauf in 4 Stufen, Lichtkante oben, Fugen, Nieten, Akzentstreifen."""
+    img = np.zeros((h, w, 4), np.uint8)
+    for y in range(h):
+        c = lerp(light, dark, quant(y / max(1, h - 1), 4))
+        if y == 0:
+            c = lerp(light, (255, 255, 255), 0.45)
+        if y == h - 1:
+            c = panel
+        img[y, :, :3] = [int(v) for v in c]
+    for x in (w // 3, 2 * w // 3):
+        img[1:-1, x, :3] = [int(v) for v in lerp(tuple(int(v) for v in img[2, x, :3]), panel, 0.7)]
+    img[h // 2, 1:w // 3 - 1, :3] = accent
+    for x in (1, w - 2):
+        img[1, x, :3] = panel
+    img[:, 0, :3] = img[:, -1, :3] = panel
+    img[..., 3] = 255
+    return Image.fromarray(img, "RGBA")
+
+
+def paint_blade(w, h, core, edge, deep=None):
+    """Energieklinge: heller Kern -> Energie -> dunkler Rand (5 Stufen), Lichtkante,
+    Segmentfugen fuer den Mecha-Look."""
+    deep = deep or lerp(edge, (0, 0, 0), 0.45)
     img = np.zeros((h, w, 4), np.uint8)
     for y in range(h):
         t = (y + 0.5) / h
-        hw = (w / 2) * (smooth(t / 0.15) if t < 0.15 else 1.0)
-        if t > 0.6:
-            hw *= max(0.0, 1 - (t - 0.6) / 0.4) ** 0.9
+        hw = (w / 2) * (smooth(t / 0.12) if t < 0.12 else 1.0)
+        if t > 0.58:
+            hw *= max(0.0, 1 - (t - 0.58) / 0.42) ** 0.85
+        notch = (y % 10 == 9) and 0.15 < t < 0.85
         for x in range(w):
             dx = abs(x + 0.5 - w / 2)
-            if dx <= hw:
-                k = dx / max(hw, 0.01)
-                c = lerp(core, edge, k ** 1.5)
-                a = 255 if k > 0.8 else int(170 + 60 * (1 - k))
-                img[y, x, :3] = [int(v) for v in c]
-                img[y, x, 3] = a
+            if dx > hw:
+                continue
+            k = quant(dx / max(hw, 0.01), 5)
+            if k < 0.5:
+                c = lerp(core, edge, k * 2)
+            else:
+                c = lerp(edge, deep, (k - 0.5) * 2)
+            a = int(205 + 50 * k)
+            if hw - dx < 1.0:
+                c, a = lerp(core, edge, 0.35), 255
+            if notch:
+                c = lerp(c, deep, 0.4)
+            img[y, x, :3] = [int(v) for v in c]
+            img[y, x, 3] = a
     return Image.fromarray(img, "RGBA")
 
 
 def mecha_wing(wing_id, style, tex_dir: Path):
-    atlas = Atlas("mecha", 64, 64)
+    atlas = Atlas("mecha", 128, 128)
     uv = {
-        "armor": atlas.add("armor", paint_flat(16, 6, style["armor_light"], style["armor_dark"], outline=style["panel"],
-                                               stripes=[(5, style["accent"]), (11, style["panel"])])),
-        "joint": atlas.add("joint", paint_flat(6, 6, style["joint_light"], style["joint_dark"], outline=style["panel"])),
-        "blade": atlas.add("blade", paint_blade(7, 48, style["core"], style["energy"])),
+        "armor": atlas.add("armor", paint_armor(24, 8, style["armor_light"], style["armor_dark"], style["panel"],
+                                                style["accent"])),
+        "joint": atlas.add("joint", paint_flat(8, 8, style["joint_light"], style["joint_dark"], outline=style["panel"])),
+        "blade": atlas.add("blade", paint_blade(10, 64, style["core"], style["energy"])),
+        "blade2": atlas.add("blade2", paint_blade(10, 64, lerp(style["core"], style["energy"], 0.5), style["energy"],
+                                                  lerp(style["energy"], (0, 0, 0), 0.6))),
         "thrust": atlas.add("thrust", paint_glow_dot(6, (255, 255, 255), style["energy"])),
+        "accent": atlas.add("accent", paint_glow_dot(6, style["core"], style["accent"])),
     }
     atlas.img.save(tex_dir / "mecha.png")
 
@@ -695,8 +1023,13 @@ def mecha_wing(wing_id, style, tex_dir: Path):
     b.segment("frame_upper", S, E, 1.8, 8.1, 9.7, t, uv["armor"])
     b.segment("frame_fore", E, W, 1.6, 8.2, 9.6, t, uv["armor"])
     b.segment("frame_hand", W, (22.4, 20.6), 1.2, 8.35, 9.45, t, uv["armor"])
+    # leuchtende Akzentleisten auf dem Rahmen
+    b.segment("accent_upper", S, E, 0.3, 9.7, 9.78, t, uv["accent"], emission=10)
+    b.segment("accent_fore", E, W, 0.3, 9.6, 9.68, t, uv["accent"], emission=10)
     for name, (px, py), sz in (("joint_s", S, 2.4), ("joint_e", E, 2.2), ("joint_w", W, 2.0)):
         b.cuboid(name, (px - sz / 2, py - sz / 2, 8.0), (px + sz / 2, py + sz / 2, 8.0 + sz), t, uv["joint"])
+        b.cuboid(name + "_core", (px - 0.35, py - 0.35, 8.0 + sz), (px + 0.35, py + 0.35, 8.1 + sz), t, uv["thrust"],
+                 emission=15)
     b.cuboid("thruster", (8.6, 6.2, 8.4), (10.0, 7.6, 9.8), t, uv["joint"])
     b.cuboid("thruster_glow", (8.8, 5.6, 8.6), (9.8, 6.2, 9.6), t, uv["thrust"], emission=15)
     blades = [
@@ -708,9 +1041,16 @@ def mecha_wing(wing_id, style, tex_dir: Path):
         z = 8.4 + curl_at(2.0 + (1 - f) * 0.9) * 0.6
         b.feather(f"blade_{i}", root=(rx, ry - 1.2), length=length, width=2.8, angle_z=ang, z=z, tex=t,
                   uv=uv["blade"], twist=-8 * (1 - f), curl=6 * (1 - f), emission=15)
-        # Halterung
-        b.feather(f"mount_{i}", root=(rx, ry + 0.2), length=2.0, width=1.4, angle_z=ang, z=z - 0.4, tex=t,
+        b.feather(f"mount_{i}", root=(rx, ry + 0.2), length=2.4, width=1.6, angle_z=ang, z=z - 0.4, tex=t,
                   uv=uv["armor"], twist=0, curl=0)
+    # zweite, kuerzere Klingenreihe dahinter (zwischen den Hauptklingen) -> Tiefe + volle Silhouette
+    for i in range(len(blades) - 1):
+        (f0, (x0, y0), l0, a0), (f1, (x1, y1), l1, a1) = blades[i], blades[i + 1]
+        f = (f0 + f1) / 2
+        z = 7.85 + curl_at(2.0 + (1 - f) * 0.9) * 0.6
+        b.feather(f"blade_back_{i}", root=((x0 + x1) / 2, (y0 + y1) / 2 - 1.4), length=(l0 + l1) / 2 * 0.8,
+                  width=2.2, angle_z=(a0 + a1) / 2, z=z, tex=t, uv=uv["blade2"], twist=-8 * (1 - f),
+                  curl=6 * (1 - f), emission=12)
     return b.model()
 
 
@@ -754,7 +1094,7 @@ WINGS = {
     }),
     "demon": ("membrane", {
         "membrane_inner": hexc("#7a0f1f"), "membrane_outer": hexc("#2a0410"), "edge": hexc("#12040a"),
-        "vein": hexc("#ff4a1c"), "vein_emission": 12,
+        "vein": hexc("#ff4a1c"), "vein_core": hexc("#ffb27a"), "vein_emission": 12,
         "bone_light": hexc("#4a3a44"), "bone_dark": hexc("#1c141a"),
         "claw_light": hexc("#e8dccb"), "claw_dark": hexc("#8c7a66"),
     }),
@@ -766,6 +1106,50 @@ WINGS = {
         "armor_light": hexc("#eef1f6"), "armor_dark": hexc("#9aa3b2"), "panel": hexc("#3a4150"),
         "accent": hexc("#2fd3ff"), "joint_light": hexc("#5a6274"), "joint_dark": hexc("#2a2f3a"),
         "core": hexc("#f2ffff"), "energy": hexc("#21c8ff"),
+    }),
+    # --- Membran-Varianten (gleicher Builder wie "demon", eigenes Leuchtmuster) ---
+    "lava": ("membrane", {
+        "pattern": "cracks", "seed": 21,
+        "membrane_inner": hexc("#2e2724"), "membrane_outer": hexc("#0e0b0b"), "edge": hexc("#050404"),
+        "vein": hexc("#ff5a0a"), "vein_core": hexc("#ffd34a"), "vein_emission": 15,
+        "bone_light": hexc("#3a3330"), "bone_dark": hexc("#151110"),
+        "claw_light": hexc("#ffb347"), "claw_dark": hexc("#b33a12"), "claw_emission": 10,
+        "embers": hexc("#ff7b1c"),
+    }),
+    "void": ("membrane", {
+        "pattern": "stars", "seed": 8,
+        "membrane_inner": hexc("#2c1150"), "membrane_outer": hexc("#07020f"), "edge": hexc("#020006"),
+        "vein": hexc("#ff7bf2"), "vein_core": hexc("#ffffff"), "rim_glow": hexc("#ff5fe6"), "vein_emission": 13,
+        "bone_light": hexc("#3a2c52"), "bone_dark": hexc("#120c1c"),
+        "claw_light": hexc("#e6ccff"), "claw_dark": hexc("#6c4a9c"),
+    }),
+    "frost": ("membrane", {
+        "pattern": "frost", "seed": 13, "alpha": 175, "glow_radius": 1.2,
+        "membrane_inner": hexc("#c6edff"), "membrane_outer": hexc("#3c7fb5"), "edge": hexc("#e9fbff"),
+        "vein": hexc("#7ff3ff"), "vein_core": hexc("#ffffff"), "vein_emission": 9,
+        "bone_light": hexc("#f2fcff"), "bone_dark": hexc("#8fc4e0"),
+        "claw_light": hexc("#ffffff"), "claw_dark": hexc("#9fe6ff"), "claw_emission": 7,
+    }),
+    "plague": ("membrane", {
+        "pattern": "veins", "seed": 17, "holes": True,
+        "membrane_inner": hexc("#40601f"), "membrane_outer": hexc("#101a08"), "edge": hexc("#070b03"),
+        "vein": hexc("#8dff3a"), "vein_core": hexc("#e6ff9a"), "vein_emission": 12,
+        "bone_light": hexc("#5e5c3c"), "bone_dark": hexc("#23230f"),
+        "claw_light": hexc("#d8d2a0"), "claw_dark": hexc("#77704a"),
+    }),
+    "bloodmoon": ("membrane", {
+        "pattern": "moon", "seed": 4,
+        "membrane_inner": hexc("#720b16"), "membrane_outer": hexc("#1e0206"), "edge": hexc("#0c0103"),
+        "vein": hexc("#ff2a3a"), "moon": hexc("#ffe8dc"), "moon_glow": hexc("#ff3a4a"), "vein_emission": 12,
+        "bone_light": hexc("#e8ebf2"), "bone_dark": hexc("#7d8494"),
+        "claw_light": hexc("#ffffff"), "claw_dark": hexc("#a9b0c0"),
+    }),
+    "storm": ("membrane", {
+        "pattern": "lightning", "seed": 29,
+        "membrane_inner": hexc("#4d5668"), "membrane_outer": hexc("#161a22"), "edge": hexc("#090b10"),
+        "vein": hexc("#5ab8ff"), "vein_core": hexc("#ffffff"), "vein_emission": 15,
+        "bone_light": hexc("#3e4452"), "bone_dark": hexc("#171a21"),
+        "claw_light": hexc("#cfe6ff"), "claw_dark": hexc("#5d7aa0"),
     }),
 }
 
