@@ -1,0 +1,34 @@
+name: NetzwerkCosmetics
+version: '${version}'
+main: de.netzwerk.cosmetics.CosmeticsPlugin
+api-version: '1.21'
+description: Fluegel und Custom-UI ueber Resource Pack - keine Client-Mods noetig
+authors: [ Netzwerk ]
+
+commands:
+  garderobe:
+    description: Oeffnet die Garderobe
+    aliases: [ wardrobe, cosmetics ]
+    permission: cosmetics.use
+  fluegel:
+    description: Fluegel direkt anlegen oder ablegen
+    usage: /fluegel <id|aus>
+    aliases: [ wings ]
+    permission: cosmetics.use
+  cosmeticsadmin:
+    description: Admin-Befehle (reload, pack)
+    usage: /cosmeticsadmin <reload|pack [spieler]>
+    aliases: [ cadmin ]
+    permission: cosmetics.admin
+
+permissions:
+  cosmetics.use:
+    default: true
+  cosmetics.admin:
+    default: op
+  cosmetics.wings.*:
+    default: op
+    children:
+      cosmetics.wings.angel: true
+      cosmetics.wings.demon: true
+      cosmetics.wings.fairy: true

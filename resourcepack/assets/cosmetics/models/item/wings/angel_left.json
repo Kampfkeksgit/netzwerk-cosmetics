@@ -1,0 +1,6 @@
+{
+  "parent": "cosmetics:item/wings/base_left",
+  "textures": {
+    "wing": "cosmetics:item/wings/angel"
+  }
+}

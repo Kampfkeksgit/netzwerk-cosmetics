@@ -1,0 +1,119 @@
+# =====================================================================
+#  NetzwerkCosmetics - Fluegel & Custom-UI nur ueber Resource Pack
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Resource Pack
+# ---------------------------------------------------------------------
+resource-pack:
+  # Pack beim Join an den Spieler senden.
+  # Im Netzwerk: auf allen Lobby/Game-Servern gleich einstellen (gleiche URL!),
+  # dann laedt der Client das Pack beim Serverwechsel NICHT neu.
+  send-on-join: true
+  # Spieler muss das Pack annehmen
+  required: true
+  # Spieler kicken, wenn er ablehnt oder der Download fehlschlaegt
+  kick-on-fail: true
+  prompt: "<gradient:#b48cff:#7fd8ff>Dieses Netzwerk nutzt ein eigenes Resource Pack</gradient><newline><gray>Fuer Fluegel, Menues und mehr - keine Mods noetig!"
+  kick-message: "<red>Du musst das Resource Pack annehmen, um hier zu spielen.<newline><gray>Server-Liste > Bearbeiten > Server-Ressourcenpakete: <white>Aktiviert"
+
+  # internal = Plugin hostet das Pack selbst ueber einen kleinen HTTP-Server
+  # external = Pack liegt woanders (Webserver, CDN, GitHub Release, ...)
+  mode: internal
+
+  internal:
+    bind: "0.0.0.0"
+    port: 8085
+    # Oeffentliche Adresse, unter der Spieler diesen Server erreichen.
+    # MUSS von aussen erreichbar sein (Port freigeben!).
+    public-url: "http://DEINE-SERVER-IP:8085/pack.zip"
+
+  external:
+    url: "https://example.com/resourcepack.zip"
+    # SHA-1 der ZIP. Leer lassen = wird aus plugins/NetzwerkCosmetics/resourcepack.zip berechnet
+    # (die Datei muss dann identisch mit der hochgeladenen sein).
+    sha1: ""
+
+  # Beim Start die resourcepack.zip aus der Plugin-JAR in den Plugin-Ordner kopieren.
+  # Auf false stellen, wenn du die Datei im Plugin-Ordner selbst austauschen willst.
+  overwrite-on-start: true
+
+# ---------------------------------------------------------------------
+# Speicher (welche Kosmetik ein Spieler traegt)
+# ---------------------------------------------------------------------
+storage:
+  # sqlite = nur dieser Server
+  # mysql  = netzwerkweit (alle Server zeigen auf dieselbe Datenbank)
+  type: sqlite
+  mysql:
+    host: localhost
+    port: 3306
+    database: cosmetics
+    user: root
+    password: ""
+    params: "useSSL=false&autoReconnect=true&characterEncoding=utf8"
+
+# ---------------------------------------------------------------------
+# Fluegel
+# ---------------------------------------------------------------------
+wing-settings:
+  # Groesse der Fluegel
+  scale: 0.75
+  # Position relativ zum Kopf-Mitfahrpunkt (Bloecke): y = hoch/runter, z = vor/zurueck
+  offset-y: -0.42
+  offset-z: -0.20
+  # Abstand jeder Fluegelwurzel von der Wirbelsaeule (Bloecke)
+  spread-x: 0.06
+  # Winkel nach hinten im Ruhezustand (Grad)
+  rest-angle: 20
+  # Schlag-Animation
+  flap-amplitude: 18        # Grad
+  flap-period-ticks: 40     # ein kompletter Schlag in Ticks (Stehen/Laufen)
+  flying-flap-amplitude: 35
+  flying-flap-period-ticks: 10
+  # Rotation: BODY = folgt dem Koerper (wie Ruestung), HEAD = folgt der Blickrichtung
+  rotation-source: BODY
+  # Falls die Fluegel bei dir nach VORNE statt nach hinten geklappt sind: true
+  invert-sweep: false
+  # Spieler sieht seine eigenen Fluegel (in F5 sichtbar). false = nur andere sehen sie
+  visible-to-self: true
+  # Fluegel ausblenden beim Schwimmen/Kriechen
+  hide-while-swimming: true
+
+# id -> Einstellungen. Das Item-Modell wird aus "model" gebildet:
+#   <model>_left, <model>_right (am Ruecken), <model>_icon (im Menue)
+wings:
+  angel:
+    name: "<gradient:#ffffff:#a8c8ff>Engelsfluegel</gradient>"
+    model: "cosmetics:wings/angel"
+    permission: "cosmetics.wings.angel"
+    lore:
+      - "<gray>Leicht wie eine Feder."
+  demon:
+    name: "<gradient:#ff3b3b:#5a0010>Daemonenfluegel</gradient>"
+    model: "cosmetics:wings/demon"
+    permission: "cosmetics.wings.demon"
+    lore:
+      - "<gray>Direkt aus dem Nether."
+  fairy:
+    name: "<gradient:#7fe8ff:#e08cff>Feenfluegel</gradient>"
+    model: "cosmetics:wings/fairy"
+    permission: "cosmetics.wings.fairy"
+    lore:
+      - "<gray>Glitzert im Sonnenlicht."
+
+# ---------------------------------------------------------------------
+# Nachrichten (MiniMessage)
+# ---------------------------------------------------------------------
+messages:
+  prefix: "<gradient:#b48cff:#7fd8ff><bold>Cosmetics</bold></gradient> <dark_gray>» "
+  menu-title: "Garderobe"
+  equipped: "<gray>Du traegst jetzt <name><gray>."
+  removed: "<gray>Fluegel abgelegt."
+  no-permission: "<red>Diese Fluegel hast du noch nicht freigeschaltet."
+  unknown-wing: "<red>Unbekannte Fluegel: <white><id>"
+  reloaded: "<green>Konfiguration neu geladen."
+  pack-sent: "<green>Resource Pack an <white><player></white> gesendet."
+  locked-lore: "<red>✖ Gesperrt"
+  equipped-lore: "<green>✔ Ausgeruestet"
+  click-lore: "<yellow>Klicke zum Anlegen"
