@@ -88,11 +88,23 @@ ein Fehler in der Konsole.
 
 ## Bauen
 
-Nur nötig, wenn du selbst etwas am Code oder Pack änderst. Benötigt **Java 25**.
+Nur nötig, wenn du selbst etwas am Code oder Pack änderst. Benötigt **Java 25** (ein JDK, nicht nur
+eine JRE). Gradle selbst musst du nicht installieren, das lädt `gradlew` automatisch.
+
+Windows (cmd):
+
+```bat
+gradlew.bat build
+```
+
+Linux/macOS:
 
 ```bash
 ./gradlew build
 ```
+
+Falls Gradle ein altes Java benutzt, `JAVA_HOME` auf das JDK 25 setzen, z. B.
+`set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-25` (Pfad anpassen).
 
 Das aktualisiert `dist/`. Danach `dist/` mit committen, damit die Server es per `git pull` bekommen.
 

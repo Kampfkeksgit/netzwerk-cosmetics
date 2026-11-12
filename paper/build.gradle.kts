@@ -6,8 +6,9 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.249-stable")
 }
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+// Baut mit dem JDK, das Gradle ausfuehrt (Java 25), erzeugt aber Java-25-Bytecode
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(25)
 }
 
 // Packt ../resourcepack als resourcepack.zip in die Plugin-JAR (wird beim Start entpackt)
@@ -21,9 +22,12 @@ val zipResourcePack by tasks.registering(Zip::class) {
     isReproducibleFileOrder = true
 }
 
+val pluginVersion = project.version.toString()
+
 tasks.processResources {
+    inputs.property("version", pluginVersion)
     from(zipResourcePack)
     filesMatching("plugin.yml") {
-        expand("version" to project.version)
+        expand("version" to pluginVersion)
     }
 }
