@@ -58,10 +58,7 @@ public final class CosmeticsPlugin extends JavaPlugin {
 
         // /reload oder Plugin-Neustart: bereits verbundene Spieler wieder ausstatten
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
-                storage.loadIntoCache(player.getUniqueId());
-                Bukkit.getScheduler().runTask(this, () -> wingManager.restoreFromStorage(player));
-            });
+            storage.restore(player);
         }
     }
 

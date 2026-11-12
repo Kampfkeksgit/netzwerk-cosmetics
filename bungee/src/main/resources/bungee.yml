@@ -1,0 +1,5 @@
+name: NetzwerkCosmetics
+main: de.netzwerk.cosmetics.bungee.CosmeticsBungee
+version: '${version}'
+author: Netzwerk
+description: Speichert Kosmetik-Auswahl netzwerkweit ohne Datenbank

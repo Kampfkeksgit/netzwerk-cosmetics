@@ -42,7 +42,7 @@ public final class PlayerListener implements Listener {
                 }
             }, 5L);
         }
-        plugin.wingManager().restoreFromStorage(player);
+        plugin.storage().restore(player);
     }
 
     @EventHandler
@@ -69,7 +69,8 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPackStatus(PlayerResourcePackStatusEvent event) {
-        if (!plugin.getConfig().getBoolean("resource-pack.kick-on-fail", true)
+        if (!plugin.packService().isEnabled()
+                || !plugin.getConfig().getBoolean("resource-pack.kick-on-fail", true)
                 || !plugin.getConfig().getBoolean("resource-pack.required", true)) {
             return;
         }

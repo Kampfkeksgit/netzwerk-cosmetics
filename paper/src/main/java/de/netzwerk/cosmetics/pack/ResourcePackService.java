@@ -16,6 +16,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,8 +30,8 @@ import org.bukkit.entity.Player;
 /**
  * Stellt das Resource Pack bereit und schickt es an Spieler.
  *
- * <p>Modus {@code internal}: Ein winziger HTTP-Server im Plugin liefert die ZIP aus.
- * Modus {@code external}: Die ZIP liegt auf einem beliebigen Webserver.
+ * <p>Modus {@code external} (Standard): Die ZIP liegt bei einem externen Host, z.B. mc-packs.net.
+ * Modus {@code internal}: Ein winziger HTTP-Server im Plugin liefert die ZIP aus.
  *
  * <p>Die Pack-ID ist fest und der SHA-1 wird mitgeschickt. Bekommt ein Client beim
  * Serverwechsel im Netzwerk dasselbe Pack (gleiche ID, URL und Hash) erneut, laedt er es
@@ -62,11 +63,20 @@ public final class ResourcePackService {
         }
         try {
             File file = preparePackFile(c.getBoolean("overwrite-on-start", true));
-            String mode = c.getString("mode", "internal");
+            String mode = c.getString("mode", "external");
             if ("external".equalsIgnoreCase(mode)) {
-                url = URI.create(c.getString("external.url", ""));
-                String configured = c.getString("external.sha1", "");
-                sha1 = configured.isBlank() ? sha1Hex(Files.readAllBytes(file.toPath())) : configured.toLowerCase();
+                String configured = c.getString("external.url", "");
+                if (configured.isBlank() || configured.contains("HIER-DEINE-PACK-URL")) {
+                    plugin.getLogger().severe("Keine Pack-URL eingetragen (resource-pack.external.url)! "
+                            + "Lade resourcepack.zip z.B. bei mc-packs.net hoch und trage den Link ein. "
+                            + "Bis dahin wird KEIN Pack gesendet und niemand gekickt.");
+                    return;
+                }
+                url = URI.create(configured);
+                String configuredSha1 = c.getString("external.sha1", "");
+                sha1 = configuredSha1.isBlank()
+                        ? sha1Hex(Files.readAllBytes(file.toPath()))
+                        : configuredSha1.trim().toLowerCase(Locale.ROOT);
             } else {
                 packBytes = Files.readAllBytes(file.toPath());
                 sha1 = sha1Hex(packBytes);

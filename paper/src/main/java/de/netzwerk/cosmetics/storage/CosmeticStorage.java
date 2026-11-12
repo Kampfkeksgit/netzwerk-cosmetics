@@ -15,15 +15,21 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Player;
 
 /**
  * Speichert, welche Kosmetik ein Spieler pro Slot traegt.
  *
- * <p>Mit {@code storage.type: mysql} teilen sich alle Server des Netzwerks dieselbe Tabelle:
- * Der Spieler hat seine Fluegel auf jedem Server. Geladen wird in
- * {@code AsyncPlayerPreLoginEvent} (also bevor der Spieler den Server betritt),
- * gespeichert sofort bei jeder Aenderung auf einem eigenen Thread.
+ * <ul>
+ *   <li>{@code sqlite}: nur dieser Server</li>
+ *   <li>{@code mysql}: alle Server teilen sich eine Datenbank</li>
+ *   <li>{@code bungee}: ohne Datenbank - der BungeeCord-Proxy speichert die Auswahl
+ *       (NetzwerkCosmetics-Bungee muss auf dem Proxy liegen)</li>
+ * </ul>
+ * SQL wird in {@code AsyncPlayerPreLoginEvent} geladen, Bungee direkt nach dem Join.
+ * Gespeichert wird sofort bei jeder Aenderung.
  */
 public final class CosmeticStorage {
 
@@ -36,6 +42,7 @@ public final class CosmeticStorage {
     });
 
     private boolean mysql;
+    private BungeeBridge bridge;
     private String url;
     private String user;
     private String password;
@@ -48,6 +55,12 @@ public final class CosmeticStorage {
     public void init() throws SQLException {
         ConfigurationSection c = plugin.getConfig().getConfigurationSection("storage");
         String type = c == null ? "sqlite" : c.getString("type", "sqlite");
+        if ("bungee".equalsIgnoreCase(type) || "bungeecord".equalsIgnoreCase(type)) {
+            bridge = new BungeeBridge(plugin, this::receiveFromProxy);
+            bridge.register();
+            plugin.getLogger().info("Speicher bereit (BungeeCord-Proxy - netzwerkweit, ohne Datenbank).");
+            return;
+        }
         mysql = "mysql".equalsIgnoreCase(type) || "mariadb".equalsIgnoreCase(type);
         if (mysql) {
             ConfigurationSection m = c.getConfigurationSection("mysql");
@@ -88,8 +101,44 @@ public final class CosmeticStorage {
         return connection;
     }
 
-    /** Blockierend - nur asynchron aufrufen (PreLogin / Async-Task). */
+    public boolean isBungee() {
+        return bridge != null;
+    }
+
+    /**
+     * Nach dem Join: gespeicherte Auswahl holen und Kosmetik anlegen.
+     * Bei Bungee kommt die Antwort ein paar Ticks spaeter vom Proxy.
+     */
+    public void restore(Player player) {
+        UUID uuid = player.getUniqueId();
+        if (bridge != null) {
+            bridge.request(player);
+            return;
+        }
+        if (cache.containsKey(uuid)) {
+            plugin.wingManager().restoreFromStorage(player);
+            return;
+        }
+        executor.execute(() -> {
+            loadIntoCache(uuid);
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    plugin.wingManager().restoreFromStorage(player);
+                }
+            });
+        });
+    }
+
+    private void receiveFromProxy(Player player, Map<String, String> data) {
+        cache.put(player.getUniqueId(), new ConcurrentHashMap<>(data));
+        plugin.wingManager().restoreFromStorage(player);
+    }
+
+    /** Blockierend - nur asynchron aufrufen (PreLogin / Async-Task). Bei Bungee ohne Wirkung. */
     public void loadIntoCache(UUID uuid) {
+        if (bridge != null) {
+            return;
+        }
         Map<String, String> data = new ConcurrentHashMap<>();
         synchronized (this) {
             try (PreparedStatement ps = connection().prepareStatement(
@@ -114,6 +163,9 @@ public final class CosmeticStorage {
 
     public void evict(UUID uuid) {
         cache.remove(uuid);
+        if (bridge != null) {
+            bridge.cancel(uuid);
+        }
     }
 
     /** {@code cosmetic == null} entfernt die Auswahl. */
@@ -123,6 +175,14 @@ public final class CosmeticStorage {
             data.remove(slot);
         } else {
             data.put(slot, cosmetic);
+        }
+        if (bridge != null) {
+            bridge.cancel(uuid); // lokale Aenderung gewinnt gegen eine noch ausstehende Antwort
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null) {
+                bridge.sendSet(player, slot, cosmetic);
+            }
+            return;
         }
         executor.execute(() -> save(uuid, slot, cosmetic));
     }
@@ -155,6 +215,9 @@ public final class CosmeticStorage {
     }
 
     public void close() {
+        if (bridge != null) {
+            bridge.unregister();
+        }
         executor.shutdown();
         try {
             if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {

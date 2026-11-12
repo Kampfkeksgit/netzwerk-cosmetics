@@ -17,9 +17,19 @@ resource-pack:
   prompt: "<gradient:#b48cff:#7fd8ff>Dieses Netzwerk nutzt ein eigenes Resource Pack</gradient><newline><gray>Fuer Fluegel, Menues und mehr - keine Mods noetig!"
   kick-message: "<red>Du musst das Resource Pack annehmen, um hier zu spielen.<newline><gray>Server-Liste > Bearbeiten > Server-Ressourcenpakete: <white>Aktiviert"
 
-  # internal = Plugin hostet das Pack selbst ueber einen kleinen HTTP-Server
-  # external = Pack liegt woanders (Webserver, CDN, GitHub Release, ...)
-  mode: internal
+  # external = Pack liegt bei einem externen Host (empfohlen, z.B. mc-packs.net).
+  #            Lade dort die resourcepack.zip hoch und trage die Download-URL unten ein.
+  #            Auf ALLEN Servern dieselbe URL eintragen.
+  # internal = Plugin startet selbst einen kleinen Webserver (Port muss offen sein)
+  mode: external
+
+  external:
+    # Direkter Download-Link zur ZIP (muss ohne Login abrufbar sein)
+    url: "https://HIER-DEINE-PACK-URL.zip"
+    # SHA-1 der ZIP. Leer lassen = wird aus plugins/NetzwerkCosmetics/resourcepack.zip berechnet.
+    # Das passt automatisch, solange du genau die resourcepack.zip hochlaedst, die zur
+    # installierten Plugin-Version gehoert.
+    sha1: ""
 
   internal:
     bind: "0.0.0.0"
@@ -27,12 +37,6 @@ resource-pack:
     # Oeffentliche Adresse, unter der Spieler diesen Server erreichen.
     # MUSS von aussen erreichbar sein (Port freigeben!).
     public-url: "http://DEINE-SERVER-IP:8085/pack.zip"
-
-  external:
-    url: "https://example.com/resourcepack.zip"
-    # SHA-1 der ZIP. Leer lassen = wird aus plugins/NetzwerkCosmetics/resourcepack.zip berechnet
-    # (die Datei muss dann identisch mit der hochgeladenen sein).
-    sha1: ""
 
   # Beim Start die resourcepack.zip aus der Plugin-JAR in den Plugin-Ordner kopieren.
   # Auf false stellen, wenn du die Datei im Plugin-Ordner selbst austauschen willst.
@@ -42,9 +46,11 @@ resource-pack:
 # Speicher (welche Kosmetik ein Spieler traegt)
 # ---------------------------------------------------------------------
 storage:
-  # sqlite = nur dieser Server
-  # mysql  = netzwerkweit (alle Server zeigen auf dieselbe Datenbank)
-  type: sqlite
+  # bungee = netzwerkweit OHNE Datenbank. NetzwerkCosmetics-Bungee.jar muss auf dem
+  #          BungeeCord-Proxy liegen, der speichert alles in selections.yml
+  # sqlite = nur dieser Server (fuer Einzelserver ohne Proxy)
+  # mysql  = netzwerkweit ueber eine MySQL/MariaDB-Datenbank
+  type: bungee
   mysql:
     host: localhost
     port: 3306

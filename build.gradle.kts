@@ -1,49 +1,44 @@
 plugins {
-    java
+    base
 }
 
-group = "de.netzwerk"
-version = "1.0.0"
-
-repositories {
-    mavenCentral()
-    maven("https://repo.papermc.io/repository/maven-public/")
+allprojects {
+    group = "de.netzwerk"
+    version = "1.1.0"
 }
 
-dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
-}
+subprojects {
+    apply(plugin = "java")
 
-java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
-}
+    repositories {
+        mavenCentral()
+        maven("https://repo.papermc.io/repository/maven-public/")
+    }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.encoding = "UTF-8"
-    options.release.set(21)
-}
-
-// Packt den Ordner ./resourcepack als resourcepack.zip.
-// Die ZIP landet in der Plugin-JAR (wird beim Start in plugins/NetzwerkCosmetics/ entpackt)
-// und zusaetzlich unter build/resourcepack.zip, falls du sie extern hosten willst.
-val zipResourcePack by tasks.registering(Zip::class) {
-    group = "build"
-    description = "Packt das Resource Pack"
-    from(layout.projectDirectory.dir("resourcepack"))
-    archiveFileName.set("resourcepack.zip")
-    destinationDirectory.set(layout.buildDirectory)
-    isPreserveFileTimestamps = false   // gleiche Dateien => gleicher SHA-1
-    isReproducibleFileOrder = true
-}
-
-tasks.processResources {
-    dependsOn(zipResourcePack)
-    from(zipResourcePack)
-    filesMatching("plugin.yml") {
-        expand("version" to project.version)
+    tasks.withType<JavaCompile>().configureEach {
+        options.encoding = "UTF-8"
+        options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Xlint:removal"))
     }
 }
 
-tasks.withType<JavaCompile>().configureEach {
-    options.compilerArgs.addAll(listOf("-Xlint:deprecation", "-Xlint:removal"))
+// Sammelt beide Plugin-JARs und das Resource Pack in build/dist/
+val dist by tasks.registering(Copy::class) {
+    group = "build"
+    description = "Kopiert alle fertigen Dateien nach build/dist"
+    dependsOn(":paper:jar", ":bungee:jar", ":paper:zipResourcePack")
+    from(project(":paper").tasks.named("jar"))
+    from(project(":bungee").tasks.named("jar"))
+    from(project(":paper").tasks.named("zipResourcePack"))
+    into(layout.buildDirectory.dir("dist"))
+    doLast {
+        val zip = destinationDir.resolve("resourcepack.zip")
+        val sha1 = java.security.MessageDigest.getInstance("SHA-1").digest(zip.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        destinationDir.resolve("resourcepack.sha1").writeText(sha1 + "\n")
+        println("Resource Pack SHA-1: $sha1")
+    }
+}
+
+tasks.named("build") {
+    dependsOn(dist)
 }
