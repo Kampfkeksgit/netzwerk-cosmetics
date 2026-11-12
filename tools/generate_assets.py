@@ -19,6 +19,7 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import preview  # noqa: E402
 import wings  # noqa: E402
+import make_blockbench  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent / "resourcepack"
 NS = ROOT / "assets" / "cosmetics"
@@ -226,6 +227,7 @@ def main() -> None:
         advances[chr(0xF100 + i)] = (1 << i)
     write_json(NS / "font" / "space.json", {"providers": [{"type": "space", "advances": advances}]})
 
+    print(f"Blockbench-Projekt: {make_blockbench.main(list(wings.WINGS))}")
     print(f"Assets erzeugt in {ROOT}")
 
 

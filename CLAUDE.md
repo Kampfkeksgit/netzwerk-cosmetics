@@ -11,7 +11,9 @@ paper/      Paper-Plugin (Flügel, Garderoben-GUI, Pack-Versand, Speicher)
 bungee/     BungeeCord-Plugin (speichert Auswahl netzwerkweit in selections.yml)
 resourcepack/   Resource Pack (wird GENERIERT, siehe unten – nicht von Hand pflegen,
                 außer bewusst eigene Blockbench-Modelle)
+blockbench/ wings.bbmodel – EIN Blockbench-Projekt mit allen Flügeln (wird generiert, nur Ansicht)
 tools/      generate_assets.py (Pack erzeugen), wings.py (Flügel-Modelle/Texturen),
+            make_blockbench.py (Blockbench-Projekt, läuft in generate_assets.py mit),
             preview.py (Software-Renderer für Vorschaubilder), validator/ (Prüfung mit echtem Client-Code)
 dist/       FERTIGE JARs + resourcepack.zip – wird committet, der Nutzer holt sie per `git pull`
 ```

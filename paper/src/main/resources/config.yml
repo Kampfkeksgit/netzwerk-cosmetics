@@ -168,6 +168,72 @@ wings:
     permission: "cosmetics.wings.storm"
     lore:
       - "<gray>Gewitterwolke mit zuckenden Blitzen."
+  inferno:
+    name: "<gradient:#ffe066:#ff5a14:#5a1408>Hoellenfeuer</gradient>"
+    model: "cosmetics:wings/inferno"
+    permission: "cosmetics.wings.inferno"
+    lore:
+      - "<gray>Die Hinterkante steht in Flammen."
+  shadow:
+    name: "<gradient:#a66bff:#2a2238>Schattenfetzen</gradient>"
+    model: "cosmetics:wings/shadow"
+    permission: "cosmetics.wings.shadow"
+    lore:
+      - "<gray>Zerrissene Schwingen aus Schatten,"
+      - "<gray>die Raender gluehen violett."
+  crystal:
+    name: "<gradient:#ff3a5a:#c44cff:#8a3cff>Kristalldaemon</gradient>"
+    model: "cosmetics:wings/crystal"
+    permission: "cosmetics.wings.crystal"
+    lore:
+      - "<gray>Kristallplatten, die von innen leuchten."
+  arcane:
+    name: "<gradient:#fff6c8:#ffc94a:#1c2a6a>Runenschwingen</gradient>"
+    model: "cosmetics:wings/arcane"
+    permission: "cosmetics.wings.arcane"
+    lore:
+      - "<gray>Goldene Bannkreise auf nachtblauer Haut."
+  bone:
+    name: "<gradient:#f2ead6:#3dffd0>Knochenschwingen</gradient>"
+    model: "cosmetics:wings/bone"
+    permission: "cosmetics.wings.bone"
+    lore:
+      - "<gray>Nur Knochen - in den Gelenken"
+      - "<gray>brennen Seelenflammen."
+  sakura:
+    name: "<gradient:#ffffff:#ffd6e6:#ff8fb8>Kirschbluete</gradient>"
+    model: "cosmetics:wings/sakura"
+    permission: "cosmetics.wings.sakura"
+    lore:
+      - "<gray>Zartrosa Federn und treibende Bluetenblaetter."
+  aurora:
+    name: "<gradient:#3dffb0:#5ab8ff:#b06cff>Polarlicht</gradient>"
+    model: "cosmetics:wings/aurora"
+    permission: "cosmetics.wings.aurora"
+    lore:
+      - "<gray>Nachtblaue Federn, die in Gruen"
+      - "<gray>und Violett leuchten."
+  griffin:
+    name: "<gradient:#fff0cc:#e6b866:#96672e>Greifenschwingen</gradient>"
+    model: "cosmetics:wings/griffin"
+    permission: "cosmetics.wings.griffin"
+    lore:
+      - "<gray>Gebaenderte Schwingen eines Greifen."
+  butterfly:
+    name: "<gradient:#fff2a8:#ff6a1c:#d82a5a>Sonnenfalter</gradient>"
+    model: "cosmetics:wings/butterfly"
+    permission: "cosmetics.wings.butterfly"
+    scale: 0.85
+    flap: 1.4
+    lore:
+      - "<gray>Falterfluegel in den Farben des Sonnenuntergangs."
+  plasma:
+    name: "<gradient:#fff0f0:#ff2a3a:#4a4e5a>Plasma-Schwingen</gradient>"
+    model: "cosmetics:wings/plasma"
+    permission: "cosmetics.wings.plasma"
+    flap: 0.4
+    lore:
+      - "<gray>Schwarzer Panzerrahmen mit roten Plasmaklingen."
 
 # ---------------------------------------------------------------------
 # Nachrichten (MiniMessage)

@@ -3,9 +3,11 @@
 Flügel und eigene Menüs für dein Minecraft-Netzwerk, **ohne Client-Mods**: Alles läuft über ein
 Server-Resource-Pack, das der Spieler beim Joinen automatisch bekommt.
 
-- **12 Flügel im Anime-Stil** als detaillierte 3D-Modelle (bis zu 96 Elemente pro Flügel) mit
+- **22 Flügel im Anime-Stil** als detaillierte 3D-Modelle (bis zu 99 Elemente pro Flügel) mit
   Flügelschlag-Animation und leuchtenden Teilen: Seraph, Gefallener Engel, Phönix, Dämon, Fee, Mecha,
-  Lavadrache, Schwingen der Leere, Frostwyrm, Seuchenflügel, Blutmond, Sturmflügel
+  Lavadrache, Schwingen der Leere, Frostwyrm, Seuchenflügel, Blutmond, Sturmflügel, Höllenfeuer,
+  Schattenfetzen, Kristalldämon, Runenschwingen, Knochenschwingen, Kirschblüte, Polarlicht,
+  Greifenschwingen, Sonnenfalter, Plasma-Schwingen
 - **Garderobe** (`/garderobe`) mit komplett eigenem Hintergrundbild und eigenen Icons
 - **Netzwerkweit ohne Datenbank**: Das BungeeCord-Plugin speichert, wer welche Flügel trägt
 - **Kein eigener Webserver nötig**: Das Pack liegt bei einem kostenlosen Host (z. B. mc-packs.net)

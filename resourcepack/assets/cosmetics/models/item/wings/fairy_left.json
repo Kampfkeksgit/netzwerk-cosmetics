@@ -16,26 +16,7 @@
     15.7,
     7.9
    ],
-   "rotation": {
-    "x": -4,
-    "y": -6,
-    "z": 30,
-    "origin": [
-     8.4,
-     9.6,
-     7.8
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      8.249,
-      0.001,
-      0.001,
-      4.999
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       0.001,
@@ -44,7 +25,26 @@
       4.999
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      8.249,
+      0.001,
+      0.001,
+      4.999
+     ],
+     "texture": "#lobes"
     }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     7.8
+    ],
+    "x": -4.0,
+    "y": -6.0,
+    "z": 30.0
    }
   },
   {
@@ -59,27 +59,7 @@
     15.7,
     7.92
    ],
-   "light_emission": 15,
-   "rotation": {
-    "x": -4,
-    "y": -6,
-    "z": 30,
-    "origin": [
-     8.4,
-     9.6,
-     7.91
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      8.249,
-      5.564,
-      0.001,
-      10.561
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       0.001,
@@ -88,8 +68,28 @@
       10.561
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      8.249,
+      5.564,
+      0.001,
+      10.561
+     ],
+     "texture": "#lobes"
     }
-   }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     7.91
+    ],
+    "x": -4.0,
+    "y": -6.0,
+    "z": 30.0
+   },
+   "light_emission": 15
   },
   {
    "name": "lobe_lower",
@@ -103,26 +103,7 @@
     8.2,
     8.45
    ],
-   "rotation": {
-    "x": -8,
-    "y": -6,
-    "z": 38,
-    "origin": [
-     8.4,
-     9.6,
-     8.35
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      14.061,
-      0.001,
-      8.314,
-      5.499
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       8.314,
@@ -131,7 +112,26 @@
       5.499
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      14.061,
+      0.001,
+      8.314,
+      5.499
+     ],
+     "texture": "#lobes"
     }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     8.35
+    ],
+    "x": -8.0,
+    "y": -6.0,
+    "z": 38.0
    }
   },
   {
@@ -146,27 +146,7 @@
     8.2,
     8.47
    ],
-   "light_emission": 15,
-   "rotation": {
-    "x": -8,
-    "y": -6,
-    "z": 38,
-    "origin": [
-     8.4,
-     9.6,
-     8.46
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      14.061,
-      5.564,
-      8.314,
-      11.061
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       8.314,
@@ -175,41 +155,42 @@
       11.061
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      14.061,
+      5.564,
+      8.314,
+      11.061
+     ],
+     "texture": "#lobes"
     }
-   }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     8.46
+    ],
+    "x": -8.0,
+    "y": -6.0,
+    "z": 38.0
+   },
+   "light_emission": 15
   },
   {
    "name": "lobe_tail",
    "from": [
-    10,
+    10.0,
     -13.5,
     8.9
    ],
    "to": [
     14.6,
-    1,
-    9
+    1.0,
+    9.0
    ],
-   "rotation": {
-    "x": -12,
-    "y": -6,
-    "z": 44,
-    "origin": [
-     8.4,
-     9.6,
-     8.9
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      15.874,
-      0.001,
-      14.126,
-      5.499
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       14.126,
@@ -218,42 +199,41 @@
       5.499
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      15.874,
+      0.001,
+      14.126,
+      5.499
+     ],
+     "texture": "#lobes"
     }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     8.9
+    ],
+    "x": -12.0,
+    "y": -6.0,
+    "z": 44.0
    }
   },
   {
    "name": "lobe_tail_rim",
    "from": [
-    10,
+    10.0,
     -13.5,
     9.01
    ],
    "to": [
     14.6,
-    1,
+    1.0,
     9.02
    ],
-   "light_emission": 15,
-   "rotation": {
-    "x": -12,
-    "y": -6,
-    "z": 44,
-    "origin": [
-     8.4,
-     9.6,
-     9.01
-    ]
-   },
    "faces": {
-    "north": {
-     "uv": [
-      15.874,
-      5.564,
-      14.126,
-      11.061
-     ],
-     "texture": "#lobes"
-    },
     "south": {
      "uv": [
       14.126,
@@ -262,8 +242,28 @@
       11.061
      ],
      "texture": "#lobes"
+    },
+    "north": {
+     "uv": [
+      15.874,
+      5.564,
+      14.126,
+      11.061
+     ],
+     "texture": "#lobes"
     }
-   }
+   },
+   "rotation": {
+    "origin": [
+     8.4,
+     9.6,
+     9.01
+    ],
+    "x": -12.0,
+    "y": -6.0,
+    "z": 44.0
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_0",
@@ -277,7 +277,6 @@
     11.209,
     9.87
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -288,7 +287,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -297,7 +296,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -333,7 +332,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_1",
@@ -347,7 +347,6 @@
     22.39,
     9.155
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -358,7 +357,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -367,7 +366,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -403,7 +402,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_2",
@@ -417,7 +417,6 @@
     14.532,
     9.68
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -428,7 +427,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -437,7 +436,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -473,7 +472,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_3",
@@ -487,7 +487,6 @@
     5.599,
     9.434
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -498,7 +497,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -507,7 +506,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -543,7 +542,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_4",
@@ -557,7 +557,6 @@
     11.696,
     10.317
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -568,7 +567,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -577,7 +576,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -613,7 +612,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_5",
@@ -627,7 +627,6 @@
     3.673,
     9.931
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -638,7 +637,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -647,7 +646,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -683,7 +682,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_6",
@@ -697,7 +697,6 @@
     13.826,
     9.574
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -708,7 +707,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -717,7 +716,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -753,7 +752,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_7",
@@ -767,7 +767,6 @@
     1.645,
     9.752
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -778,7 +777,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -787,7 +786,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -823,7 +822,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_8",
@@ -837,7 +837,6 @@
     21.556,
     9.663
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -848,7 +847,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -857,7 +856,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -893,7 +892,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_9",
@@ -907,7 +907,6 @@
     3.538,
     10.343
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -918,7 +917,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -927,7 +926,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -963,7 +962,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_10",
@@ -977,7 +977,6 @@
     3.571,
     9.635
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -988,7 +987,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -997,7 +996,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -1033,7 +1032,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   },
   {
    "name": "spark_11",
@@ -1047,7 +1047,6 @@
     16.356,
     9.5
    ],
-   "light_emission": 15,
    "faces": {
     "north": {
      "uv": [
@@ -1058,7 +1057,7 @@
      ],
      "texture": "#lobes"
     },
-    "east": {
+    "south": {
      "uv": [
       0.001,
       11.126,
@@ -1067,7 +1066,7 @@
      ],
      "texture": "#lobes"
     },
-    "south": {
+    "east": {
      "uv": [
       0.001,
       11.126,
@@ -1103,7 +1102,8 @@
      ],
      "texture": "#lobes"
     }
-   }
+   },
+   "light_emission": 15
   }
  ]
 }

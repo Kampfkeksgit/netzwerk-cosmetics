@@ -127,6 +127,10 @@ def paint_feather(w, h, pal, tip="round", asym=True, barbs=True, root_shadow=0.3
             if (y * 1.0 + abs(dx) * 1.1) % 6.0 < 0.9:
                 v -= 0.09
         c = ramp_at(quant(max(0.0, min(1.0, v)), steps))
+        if "bar" in pal and t > 0.22:
+            # Querbaender, zum Rand hin leicht nach unten gezogen (Chevron)
+            if ((t + 0.05 * abs(dx) / max(lim, 0.01)) * pal.get("bar_count", 6)) % 1.0 < 0.36:
+                c = lerp(c, pal["bar"], 0.7)
         if abs(dx) < 0.5 and t < 0.88:
             c = lerp(c, pal["shaft"], 0.85 * (1 - smooth((t - 0.55) / 0.33)))
         if "tip" in pal and t > pal.get("tip_start", 0.6):
@@ -402,10 +406,11 @@ def feathered_wing(wing_id, style, tex_dir: Path):
     glow = style.get("glow")
     if glow:
         for key in ("p0", "s0", "c"):
-            uv["g" + key] = atlas.add("g" + key, paint_glow(masks[key], glow["color"], start=glow.get("start", 0.55),
+            gcol = glow.get("covert_color", glow["color"]) if key == "c" else glow["color"]
+            uv["g" + key] = atlas.add("g" + key, paint_glow(masks[key], gcol, start=glow.get("start", 0.55),
                                                               alpha=glow.get("alpha", 210)))
     if style.get("embers"):
-        uv["ember"] = atlas.add("ember", paint_glow_dot(6, (255, 255, 220), style["embers"]))
+        uv["ember"] = atlas.add("ember", paint_glow_dot(6, style.get("ember_core", (255, 255, 220)), style["embers"]))
     atlas.img.save(tex_dir / "feathers.png")
 
     b = ModelBuilder()
@@ -651,6 +656,70 @@ def paint_membrane_glow(style, w, h, mask):
                 for s in (-1, 1):
                     a2 = ang + s * math.radians(60)
                     line([(bx, by), (bx + math.cos(a2) * ln, by + math.sin(a2) * ln)], core, 1)
+    if pattern == "flames":
+        # Flammenzungen, die von der Hinterkante in die Membran hochschlagen
+        chain = DEMON_TIPS + [DEMON_BODY]
+        for a, b in zip(chain, chain[1:]):
+            edge_pts = [a] + scallop(a, b, _toward(b), depth=0.3, n=12) + [b]
+            for j in range(1, len(edge_pts) - 1):
+                ex, ey = edge_pts[j]
+                dx_, dy_ = W_[0] - ex, W_[1] - ey
+                ln = math.hypot(dx_, dy_)
+                ux, uy = dx_ / ln, dy_ / ln
+                nx, ny = -uy, ux
+                for colr, k_len, k_w in ((vein, 1.0, 1.0), (core, 0.55, 0.5)):
+                    L_ = rng.uniform(2.2, 5.4) * k_len * (1.25 if j % 2 else 0.8)
+                    wd = 1.05 * k_w
+                    sway = rng.uniform(-0.6, 0.6)
+                    poly = [(ex - nx * wd - ux * 0.6, ey - ny * wd - uy * 0.6),
+                            (ex - nx * wd * 0.7 + ux * L_ * 0.45, ey - ny * wd * 0.7 + uy * L_ * 0.45),
+                            (ex + nx * sway + ux * L_, ey + ny * sway + uy * L_),
+                            (ex + nx * wd * 0.7 + ux * L_ * 0.4, ey + ny * wd * 0.7 + uy * L_ * 0.4),
+                            (ex + nx * wd - ux * 0.6, ey + ny * wd - uy * 0.6)]
+                    d.polygon([to_px(p) for p in poly], fill=colr)
+    if pattern == "facets":
+        # Kristallplatten: Voronoi-Zellen, jede in eigener Farbe, helle Bruchkanten
+        n = 30
+        sx, sy = rng.uniform(0, w, n), rng.uniform(0, h, n)
+        yy, xx = np.mgrid[0:h, 0:w]
+        ids = np.argmin((xx[..., None] - sx) ** 2 + (yy[..., None] - sy) ** 2, axis=2)
+        wx, wy = to_px(W_)
+        ca, cb = np.array(style["facet_a"], float), np.array(style["facet_b"], float)
+        tcell = np.clip(np.hypot(sx - wx, sy - wy) / (w * 0.95) + rng.uniform(-0.12, 0.12, n), 0, 1)
+        bright = rng.uniform(0.75, 1.15, n)
+        cols = np.clip((ca[None] * (1 - tcell[:, None]) + cb[None] * tcell[:, None]) * bright[:, None], 0, 255)
+        arr = np.zeros((h, w, 4), np.uint8)
+        arr[..., :3] = cols[ids]
+        arr[..., 3] = style.get("facet_alpha", 170)
+        border = (ids != np.roll(ids, 1, 0)) | (ids != np.roll(ids, 1, 1))
+        arr[border, :3] = core[:3]
+        arr[border, 3] = 255
+        img = Image.fromarray(arr, "RGBA")
+        d = ImageDraw.Draw(img)
+    if pattern == "runes":
+        # Bannkreise: zwei grosse Boegen ums Handgelenk, je Feld ein Siegel mit Zeichen
+        def ring(c, r, col, width=1, a0=0, a1=360, dash=None):
+            (cx_, cy_), rp = to_px(c), r * PPU
+            if dash:
+                for a in range(int(a0), int(a1), dash * 2):
+                    d.arc([cx_ - rp, cy_ - rp, cx_ + rp, cy_ + rp], a, a + dash, fill=col, width=width)
+            else:
+                d.arc([cx_ - rp, cy_ - rp, cx_ + rp, cy_ + rp], a0, a1, fill=col, width=width)
+        ring(W_, 8.5, vein, 1)
+        ring(W_, 9.3, core, 1, dash=6)
+        ring(W_, 14.5, vein, 1, dash=10)
+        for k in range(4):
+            mid = _panel_mid(k)
+            c = (W_[0] + (mid[0] - W_[0]) * 0.7, W_[1] + (mid[1] - W_[1]) * 0.7)
+            r = 2.3 if k < 3 else 1.8
+            ring(c, r, vein, 2)
+            ring(c, r * 0.62, core, 1)
+            for a in range(0, 360, 60):
+                ar = math.radians(a + 15 * k)
+                line([(c[0] + math.cos(ar) * r * 0.62, c[1] + math.sin(ar) * r * 0.62),
+                      (c[0] + math.cos(ar) * r, c[1] + math.sin(ar) * r)], vein, 1)
+            pts = [(c[0] + rng.uniform(-0.9, 0.9) * r * 0.5, c[1] + rng.uniform(-0.9, 0.9) * r * 0.5) for _ in range(4)]
+            line(pts, core, 1)
     if pattern == "stars":
         px = rng.integers(0, w, 900)
         py = rng.integers(0, h, 900)
@@ -752,6 +821,28 @@ def membrane_wing(wing_id, style, tex_dir: Path):
         hole = np.asarray(holes) > 127
         full = full & ~hole
         style = dict(style, rim_glow=style["vein"])
+    if style.get("tatter"):
+        # Fetzen: tiefe Kerben von der Hinterkante Richtung Handgelenk
+        rng = np.random.default_rng(style.get("seed", 3) + 2)
+        cut = Image.new("L", (w, h), 0)
+        cd = ImageDraw.Draw(cut)
+        chain = DEMON_TIPS + [DEMON_BODY]
+        for a, b in zip(chain, chain[1:]):
+            edge_pts = [a] + scallop(a, b, _toward(b), depth=0.3, n=12) + [b]
+            for j in range(1, len(edge_pts) - 1, 2):
+                ex, ey = edge_pts[j]
+                dx_, dy_ = DEMON_W[0] - ex, DEMON_W[1] - ey
+                ln = math.hypot(dx_, dy_)
+                ux, uy = dx_ / ln, dy_ / ln
+                nx, ny = -uy, ux
+                depth = rng.uniform(2.5, 6.5)
+                wd = rng.uniform(0.7, 1.2)
+                sway = rng.uniform(-0.8, 0.8)
+                cd.polygon([to_px((ex - nx * wd - ux, ey - ny * wd - uy)),
+                            to_px((ex + nx * sway + ux * depth, ey + ny * sway + uy * depth)),
+                            to_px((ex + nx * wd - ux, ey + ny * wd - uy))], fill=255)
+        full = full & ~(np.asarray(cut) > 127)
+        style = dict(style, rim_glow=style.get("rim_glow", style["vein"]))
     base = paint_membrane_base(style, w, h, full)
     glow = paint_membrane_glow(style, w, h, full)
     ga = np.asarray(glow).copy()
@@ -784,8 +875,14 @@ def membrane_wing(wing_id, style, tex_dir: Path):
     parts.img.save(tex_dir / "parts.png")
 
     b = ModelBuilder()
-    tm = b.tex("membrane", f"{TEX_NS}/{wing_id}/membrane")
-    tv = b.tex("veins", f"{TEX_NS}/{wing_id}/veins")
+    skeleton = style.get("membrane") is False  # nur Knochen, keine Flughaut
+    if skeleton:
+        for f in ("membrane.png", "veins.png"):
+            (tex_dir / f).unlink()
+        panels = []
+    else:
+        tm = b.tex("membrane", f"{TEX_NS}/{wing_id}/membrane")
+        tv = b.tex("veins", f"{TEX_NS}/{wing_id}/veins")
     tp = b.tex("parts", f"{TEX_NS}/{wing_id}/parts")
     x0, y0, x1, y1 = CANVAS
     em = style.get("vein_emission", 12)
@@ -831,6 +928,29 @@ def membrane_wing(wing_id, style, tex_dir: Path):
         p2 = (min(31.9, p1[0] + ux * 0.4 + uy * 0.5), p1[1] + uy * 0.4 - ux * 0.5)
         b.segment(f"tipclaw_{i}", tip, p1, 0.55, 7.72, 8.28, tp, uv_claw, emission=ce)
         b.segment(f"tipclaw_{i}_hook", p1, p2, 0.35, 7.82, 8.18, tp, uv_claw, emission=ce)
+    if skeleton:
+        # Rippenstreben statt Flughaut + Seelenflammen in den Gelenken
+        for i, tip in enumerate(DEMON_TIPS):
+            for j, t_ in enumerate((0.38, 0.72)):
+                px = DEMON_W[0] + (tip[0] - DEMON_W[0]) * t_
+                py = DEMON_W[1] + (tip[1] - DEMON_W[1]) * t_
+                nxt = DEMON_TIPS[i + 1] if i + 1 < len(DEMON_TIPS) else DEMON_BODY
+                qx = DEMON_W[0] + (nxt[0] - DEMON_W[0]) * t_
+                qy = DEMON_W[1] + (nxt[1] - DEMON_W[1]) * t_
+                k_ = 0.42 - 0.12 * j
+                b.segment(f"rib_{i}_{j}", (px, py), (px + (qx - px) * k_, py + (qy - py) * k_ - 0.6), 0.4,
+                          7.8, 8.2, tp, uv_claw, emission=ce)
+        souls = [("soul_elbow", DEMON_E, 1.0), ("soul_wrist", DEMON_W, 1.2)]
+        souls += [(f"soul_knuckle_{i}", (DEMON_W[0] + (tip[0] - DEMON_W[0]) * 0.55,
+                                         DEMON_W[1] + (tip[1] - DEMON_W[1]) * 0.55), 0.6)
+                  for i, tip in enumerate(DEMON_TIPS)]
+        for name, (px, py), sz in souls:
+            # Flamme = drei nach oben kleiner werdende, leicht versetzte Wuerfel vor dem Gelenk
+            for j, (k_, dy_, dx_) in enumerate(((1.0, 0.0, 0.0), (0.7, 0.75, 0.2), (0.42, 1.35, -0.1))):
+                s_ = sz * k_
+                cx_, cy_ = min(31.4, px + dx_ * sz), py + dy_ * sz
+                b.cuboid(f"{name}_{j}", (cx_ - s_ / 2, cy_ - s_ / 2, 8.95), (cx_ + s_ / 2, cy_ + s_ / 2, 8.95 + s_),
+                         tp, uv_ember, emission=15)
     if style.get("embers"):
         rng = np.random.default_rng(5)
         for i, tip in enumerate(DEMON_TIPS[:3]):
@@ -1150,6 +1270,82 @@ WINGS = {
         "vein": hexc("#5ab8ff"), "vein_core": hexc("#ffffff"), "vein_emission": 15,
         "bone_light": hexc("#3e4452"), "bone_dark": hexc("#171a21"),
         "claw_light": hexc("#cfe6ff"), "claw_dark": hexc("#5d7aa0"),
+    }),
+    # --- Membran: weitere Muster ---
+    "inferno": ("membrane", {
+        "pattern": "flames", "seed": 31, "glow_radius": 1.4,
+        "membrane_inner": hexc("#5a1408"), "membrane_outer": hexc("#1a0503"), "edge": hexc("#0a0201"),
+        "vein": hexc("#ff5a14"), "vein_core": hexc("#ffe066"), "rim_glow": hexc("#ff8a1c"), "vein_emission": 15,
+        "bone_light": hexc("#4a2a22"), "bone_dark": hexc("#180a08"),
+        "claw_light": hexc("#ffd166"), "claw_dark": hexc("#c8461a"), "claw_emission": 9,
+        "embers": hexc("#ff7b1c"),
+    }),
+    "shadow": ("membrane", {
+        "pattern": "none", "seed": 41, "tatter": True, "alpha": 225,
+        "membrane_inner": hexc("#2a2238"), "membrane_outer": hexc("#07050c"), "edge": hexc("#030206"),
+        "vein": hexc("#9a5cff"), "rim_glow": hexc("#a66bff"), "vein_emission": 13,
+        "bone_light": hexc("#2c2638"), "bone_dark": hexc("#0c0a12"),
+        "claw_light": hexc("#c9a6ff"), "claw_dark": hexc("#5a3a9c"), "claw_emission": 8,
+    }),
+    "crystal": ("membrane", {
+        "pattern": "facets", "seed": 53, "alpha": 200, "glow_radius": 0.6,
+        "membrane_inner": hexc("#3a1030"), "membrane_outer": hexc("#12061e"), "edge": hexc("#f6e6ff"),
+        "vein": hexc("#ffffff"), "vein_core": hexc("#ffffff"), "vein_emission": 10,
+        "facet_a": hexc("#ff3a5a"), "facet_b": hexc("#8a3cff"),
+        "bone_light": hexc("#5a4a6a"), "bone_dark": hexc("#1c1426"),
+        "claw_light": hexc("#ffd6f2"), "claw_dark": hexc("#b85cff"), "claw_emission": 10,
+    }),
+    "arcane": ("membrane", {
+        "pattern": "runes", "seed": 61, "glow_radius": 1.0,
+        "membrane_inner": hexc("#1c2a6a"), "membrane_outer": hexc("#070b22"), "edge": hexc("#03040e"),
+        "vein": hexc("#ffc94a"), "vein_core": hexc("#fff6c8"), "vein_emission": 14,
+        "bone_light": hexc("#c9a24a"), "bone_dark": hexc("#5a4418"),
+        "claw_light": hexc("#fff0b0"), "claw_dark": hexc("#c9952a"), "claw_emission": 6,
+    }),
+    "bone": ("membrane", {
+        "membrane": False,
+        "membrane_inner": hexc("#000000"), "membrane_outer": hexc("#000000"), "edge": hexc("#3a3428"),
+        "vein": hexc("#3dffd0"), "embers": hexc("#1fd6c0"),
+        "bone_light": hexc("#f2ead6"), "bone_dark": hexc("#8f856c"),
+        "claw_light": hexc("#fff8e6"), "claw_dark": hexc("#a89c80"),
+    }),
+    # --- Feder-Varianten ---
+    "sakura": ("feathered", {
+        "feather": pal("#c98aa6", "#f0b8cf", "#f9d4e2", "#fff0f5", "#ffffff", "#ffe1ec",
+                       tip="#ff8fb8", tip_start=0.62),
+        "covert": pal("#cf93ad", "#f3c2d6", "#fbdbe7", "#fff4f8", "#ffffff", "#ffe1ec"),
+        "covert_barbs": False,
+        "trim": hexc("#ff9ec4"),
+        "glow": {"color": hexc("#ffd6e6"), "emission": 8, "start": 0.72, "alpha": 150},
+        "embers": hexc("#ff8fb8"), "ember_core": hexc("#ffe6f0"),
+    }),
+    "aurora": ("feathered", {
+        "feather": pal("#050a18", "#0b1630", "#122448", "#1a3566", "#2a5a8c", "#6fe8c8",
+                       tip="#3dffb0", tip_start=0.5),
+        "covert": pal("#050a18", "#0c1834", "#14284e", "#1c3a6e", "#2c5e92", "#6fe8c8"),
+        "tip": "pointed",
+        "trim": hexc("#3dffb0"),
+        "glow": {"color": hexc("#5dffc0"), "covert_color": hexc("#b06cff"), "emission": 15, "start": 0.66,
+                 "alpha": 220, "secondaries": True, "coverts": True},
+    }),
+    "griffin": ("feathered", {
+        "feather": pal("#3a2410", "#6b4520", "#96672e", "#c08a42", "#e6b866", "#f6e2b0", bar="#4a2e14"),
+        "covert": pal("#5a3c1c", "#a8793c", "#cfa25c", "#ecd09a", "#fff0cc", "#fff6dd"),
+        "covert_barbs": False,
+        "tip": "pointed",
+        "trim": hexc("#f2c14e"),
+        "glow": {"color": hexc("#ffe08a"), "emission": 8, "start": 0.8, "alpha": 130},
+    }),
+    # --- Fee- und Mecha-Varianten ---
+    "butterfly": ("fairy", {
+        "inner": hexc("#fff2a8"), "mid": hexc("#ffb347"), "outer": hexc("#ff6a1c"),
+        "inner2": hexc("#ffd08a"), "mid2": hexc("#ff7a5a"), "outer2": hexc("#d82a5a"),
+        "edge": hexc("#fff6d6"),
+    }),
+    "plasma": ("mecha", {
+        "armor_light": hexc("#4a4e5a"), "armor_dark": hexc("#1c1e26"), "panel": hexc("#07080b"),
+        "accent": hexc("#ff2a4a"), "joint_light": hexc("#30333c"), "joint_dark": hexc("#0e0f14"),
+        "core": hexc("#fff0f0"), "energy": hexc("#ff2a3a"),
     }),
 }
 
