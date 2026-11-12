@@ -2,6 +2,7 @@ package de.netzwerk.cosmetics.gui;
 
 import de.netzwerk.cosmetics.CosmeticsPlugin;
 import de.netzwerk.cosmetics.Messages;
+import de.netzwerk.cosmetics.armor.ArmorSet;
 import de.netzwerk.cosmetics.wings.WingType;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,15 +27,18 @@ import org.bukkit.inventory.meta.ItemMeta;
  * (Item-Modelle aus dem Resource Pack). Layout passt zu textures/gui/wardrobe.png:
  *
  * <pre>
- *  Reihe 0-3: Spalten 1-7 = Fluegel (28 pro Seite)
- *  Reihe 5:   45 = zurueck, 48 = ablegen, 49 = schliessen, 53 = weiter
+ *  Reihe 0-3: Spalten 1-7 = Fluegel bzw. Ruestungen (28 pro Seite)
+ *  Reihe 5:   45 = zurueck, 48 = ablegen, 49 = schliessen, 50 = Reiter wechseln, 53 = weiter
  * </pre>
  */
 public final class WardrobeMenu implements InventoryHolder {
 
+    private enum Tab { WINGS, ARMOR }
+
     private static final int SLOT_PREV = 45;
     private static final int SLOT_REMOVE = 48;
     private static final int SLOT_CLOSE = 49;
+    private static final int SLOT_TAB = 50;
     private static final int SLOT_NEXT = 53;
     private static final int[] CONTENT_SLOTS = buildContentSlots();
 
@@ -47,6 +51,8 @@ public final class WardrobeMenu implements InventoryHolder {
     private final Player viewer;
     private final Inventory inventory;
     private final List<WingType> wingsOnPage = new ArrayList<>();
+    private final List<ArmorSet> armorOnPage = new ArrayList<>();
+    private Tab tab = Tab.WINGS;
     private int page;
 
     private WardrobeMenu(CosmeticsPlugin plugin, Player viewer) {
@@ -81,17 +87,31 @@ public final class WardrobeMenu implements InventoryHolder {
     private void render() {
         inventory.clear();
         wingsOnPage.clear();
+        armorOnPage.clear();
 
-        List<WingType> all = new ArrayList<>(plugin.wingRegistry().all());
-        int pages = Math.max(1, (all.size() + CONTENT_SLOTS.length - 1) / CONTENT_SLOTS.length);
+        List<WingType> wings = new ArrayList<>(plugin.wingRegistry().all());
+        List<ArmorSet> armor = new ArrayList<>(plugin.armorRegistry().all());
+        int total = tab == Tab.WINGS ? wings.size() : armor.size();
+        int pages = Math.max(1, (total + CONTENT_SLOTS.length - 1) / CONTENT_SLOTS.length);
         page = Math.max(0, Math.min(page, pages - 1));
-        WingType current = plugin.wingManager().current(viewer);
-
         int start = page * CONTENT_SLOTS.length;
-        for (int i = 0; i < CONTENT_SLOTS.length && start + i < all.size(); i++) {
-            WingType wing = all.get(start + i);
-            wingsOnPage.add(wing);
-            inventory.setItem(CONTENT_SLOTS[i], wingIcon(wing, wing.equals(current)));
+
+        if (tab == Tab.WINGS) {
+            WingType current = plugin.wingManager().current(viewer);
+            for (int i = 0; i < CONTENT_SLOTS.length && start + i < wings.size(); i++) {
+                WingType wing = wings.get(start + i);
+                wingsOnPage.add(wing);
+                inventory.setItem(CONTENT_SLOTS[i], icon(wing.iconModel(), wing.name(), wing.lore(),
+                        wing.equals(current), wing.canUse(viewer)));
+            }
+        } else {
+            ArmorSet current = plugin.armorManager().current(viewer);
+            for (int i = 0; i < CONTENT_SLOTS.length && start + i < armor.size(); i++) {
+                ArmorSet set = armor.get(start + i);
+                armorOnPage.add(set);
+                inventory.setItem(CONTENT_SLOTS[i], icon(set.iconModel(), set.name(), set.lore(),
+                        set.equals(current), set.canUse(viewer)));
+            }
         }
 
         if (page > 0) {
@@ -100,21 +120,30 @@ public final class WardrobeMenu implements InventoryHolder {
         if (page < pages - 1) {
             inventory.setItem(SLOT_NEXT, button(ICON_NEXT, "<#b48cff>Naechste Seite »"));
         }
-        inventory.setItem(SLOT_REMOVE, button(ICON_REMOVE, "<#ffbe50>Fluegel ablegen"));
+        inventory.setItem(SLOT_REMOVE, button(ICON_REMOVE,
+                tab == Tab.WINGS ? "<#ffbe50>Fluegel ablegen" : "<#ffbe50>Ruestung ablegen"));
         inventory.setItem(SLOT_CLOSE, button(ICON_CLOSE, "<#ff5a64>Schliessen"));
+
+        // Reiter wechseln: zeigt als Icon das erste Element des jeweils anderen Reiters
+        if (tab == Tab.WINGS && !armor.isEmpty()) {
+            inventory.setItem(SLOT_TAB, button(armor.get(0).iconModel(), "<#7fd8ff>Zu den Ruestungen »"));
+        } else if (tab == Tab.ARMOR && !wings.isEmpty()) {
+            inventory.setItem(SLOT_TAB, button(wings.get(0).iconModel(), "<#7fd8ff>« Zu den Fluegeln"));
+        }
     }
 
-    private ItemStack wingIcon(WingType wing, boolean equipped) {
+    private ItemStack icon(NamespacedKey model, Component name, List<Component> baseLore,
+                           boolean equipped, boolean usable) {
         ItemStack item = new ItemStack(Material.PAPER);
         ItemMeta meta = item.getItemMeta();
-        meta.setItemModel(wing.iconModel());
-        meta.displayName(wing.name());
-        List<Component> lore = new ArrayList<>(wing.lore());
+        meta.setItemModel(model);
+        meta.displayName(name);
+        List<Component> lore = new ArrayList<>(baseLore);
         lore.add(Component.empty());
         if (equipped) {
             lore.add(plugin.messages().item("equipped-lore"));
             meta.setEnchantmentGlintOverride(true);
-        } else if (wing.canUse(viewer)) {
+        } else if (usable) {
             lore.add(plugin.messages().item("click-lore"));
         } else {
             lore.add(plugin.messages().item("locked-lore"));
@@ -145,30 +174,53 @@ public final class WardrobeMenu implements InventoryHolder {
                 render();
                 playClick();
             }
-            case SLOT_CLOSE -> viewer.closeInventory();
-            case SLOT_REMOVE -> {
-                if (plugin.wingManager().current(viewer) != null) {
-                    plugin.wingManager().unequip(viewer, true);
-                    plugin.messages().send(viewer, "removed");
-                    playClick();
+            case SLOT_TAB -> {
+                if (inventory.getItem(SLOT_TAB) != null) {
+                    tab = tab == Tab.WINGS ? Tab.ARMOR : Tab.WINGS;
+                    page = 0;
                     render();
+                    playClick();
                 }
             }
+            case SLOT_CLOSE -> viewer.closeInventory();
+            case SLOT_REMOVE -> removeCurrent();
             default -> {
-                for (int i = 0; i < CONTENT_SLOTS.length && i < wingsOnPage.size(); i++) {
-                    if (CONTENT_SLOTS[i] == slot) {
-                        selectWing(wingsOnPage.get(i));
-                        return;
+                for (int i = 0; i < CONTENT_SLOTS.length; i++) {
+                    if (CONTENT_SLOTS[i] != slot) {
+                        continue;
                     }
+                    if (tab == Tab.WINGS && i < wingsOnPage.size()) {
+                        selectWing(wingsOnPage.get(i));
+                    } else if (tab == Tab.ARMOR && i < armorOnPage.size()) {
+                        selectArmor(armorOnPage.get(i));
+                    }
+                    return;
                 }
             }
         }
     }
 
+    private void removeCurrent() {
+        if (tab == Tab.WINGS) {
+            if (plugin.wingManager().current(viewer) == null) {
+                return;
+            }
+            plugin.wingManager().unequip(viewer, true);
+            plugin.messages().send(viewer, "removed");
+        } else {
+            if (plugin.armorManager().current(viewer) == null) {
+                return;
+            }
+            plugin.armorManager().unequip(viewer, true);
+            plugin.messages().send(viewer, "armor-removed");
+        }
+        playClick();
+        render();
+    }
+
     private void selectWing(WingType wing) {
         if (!wing.canUse(viewer)) {
-            plugin.messages().send(viewer, "no-permission");
-            viewer.playSound(viewer.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+            deny("no-permission");
             return;
         }
         if (wing.equals(plugin.wingManager().current(viewer))) {
@@ -178,6 +230,25 @@ public final class WardrobeMenu implements InventoryHolder {
         plugin.messages().send(viewer, "equipped", Placeholder.component("name", wing.name()));
         viewer.playSound(viewer.getLocation(), Sound.ITEM_ARMOR_EQUIP_ELYTRA, 0.8f, 1.2f);
         render();
+    }
+
+    private void selectArmor(ArmorSet set) {
+        if (!set.canUse(viewer)) {
+            deny("armor-no-permission");
+            return;
+        }
+        if (set.equals(plugin.armorManager().current(viewer))) {
+            return;
+        }
+        plugin.armorManager().equip(viewer, set, true);
+        plugin.messages().send(viewer, "equipped", Placeholder.component("name", set.name()));
+        viewer.playSound(viewer.getLocation(), Sound.ITEM_ARMOR_EQUIP_IRON, 0.8f, 1.1f);
+        render();
+    }
+
+    private void deny(String messageKey) {
+        plugin.messages().send(viewer, messageKey);
+        viewer.playSound(viewer.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
     }
 
     private void playClick() {

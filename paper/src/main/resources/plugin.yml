@@ -15,6 +15,11 @@ commands:
     usage: /fluegel <id|aus>
     aliases: [ wings ]
     permission: cosmetics.use
+  ruestung:
+    description: Kosmetik-Ruestung direkt anlegen oder ablegen
+    usage: /ruestung <id|aus>
+    aliases: [ armor ]
+    permission: cosmetics.use
   cosmeticsadmin:
     description: Admin-Befehle (reload, pack)
     usage: /cosmeticsadmin <reload|pack [spieler]>
@@ -51,3 +56,10 @@ permissions:
       cosmetics.wings.griffin: true
       cosmetics.wings.butterfly: true
       cosmetics.wings.plasma: true
+  cosmetics.armor.*:
+    default: op
+    children:
+      cosmetics.armor.angel: true
+      cosmetics.armor.demon: true
+      cosmetics.armor.mecha: true
+      cosmetics.armor.lava: true

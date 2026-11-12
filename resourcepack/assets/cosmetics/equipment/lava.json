@@ -1,0 +1,14 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "cosmetics:lava"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "cosmetics:lava"
+      }
+    ]
+  }
+}

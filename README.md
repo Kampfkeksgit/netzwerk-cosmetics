@@ -8,6 +8,8 @@ Server-Resource-Pack, das der Spieler beim Joinen automatisch bekommt.
   Lavadrache, Schwingen der Leere, Frostwyrm, Seuchenflügel, Blutmond, Sturmflügel, Höllenfeuer,
   Schattenfetzen, Kristalldämon, Runenschwingen, Knochenschwingen, Kirschblüte, Polarlicht,
   Greifenschwingen, Sonnenfalter, Plasma-Schwingen
+- **Kosmetik-Rüstung** passend zu den Flügeln (Testphase: Seraph, Dämon, Mecha, Lavadrache) – nur optisch,
+  die echte Rüstung samt Schutz bleibt in den Slots (`/ruestung <id|aus>`)
 - **Garderobe** (`/garderobe`) mit komplett eigenem Hintergrundbild und eigenen Icons
 - **Netzwerkweit ohne Datenbank**: Das BungeeCord-Plugin speichert, wer welche Flügel trägt
 - **Kein eigener Webserver nötig**: Das Pack liegt bei einem kostenlosen Host (z. B. mc-packs.net)

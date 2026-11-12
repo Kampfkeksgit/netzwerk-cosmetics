@@ -1,0 +1,14 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "cosmetics:angel"
+      }
+    ],
+    "humanoid_leggings": [
+      {
+        "texture": "cosmetics:angel"
+      }
+    ]
+  }
+}

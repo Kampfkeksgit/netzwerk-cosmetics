@@ -13,7 +13,7 @@ resourcepack/   Resource Pack (wird GENERIERT, siehe unten – nicht von Hand pf
                 außer bewusst eigene Blockbench-Modelle)
 blockbench/ wings.bbmodel – EIN Blockbench-Projekt mit allen Flügeln (wird generiert, nur Ansicht)
 tools/      generate_assets.py (Pack erzeugen), wings.py (Flügel-Modelle/Texturen),
-            make_blockbench.py (Blockbench-Projekt, läuft in generate_assets.py mit),
+            armor.py (Kosmetik-Rüstungen), make_blockbench.py (Blockbench-Projekt, läuft in generate_assets.py mit),
             preview.py (Software-Renderer für Vorschaubilder), validator/ (Prüfung mit echtem Client-Code)
 dist/       FERTIGE JARs + resourcepack.zip – wird committet, der Nutzer holt sie per `git pull`
 ```
@@ -63,6 +63,19 @@ Gegenprobe: Vanilla-Items/Fonts laufen bis auf Spezial-Renderer (Banner, Köpfe 
 - Neue Flügel: Stil in `tools/wings.py` (`WINGS`) eintragen, `generate_assets.py` laufen lassen, Vorschau ansehen,
   validieren, Eintrag in `paper/src/main/resources/config.yml` + Permission in `plugin.yml`.
 - Designs sind **eigene Entwürfe im Anime-Stil**. Keine Flügel bestimmter Anime-Figuren nachbauen.
+
+## Kosmetik-Rüstung (Testphase, 4 Sets)
+
+- Aussehen: `equipment/<id>.json` + Texturen 64×32 im Vanilla-Rüstungslayout unter
+  `textures/entity/equipment/humanoid/` und `humanoid_leggings/` (erzeugt von `tools/armor.py`).
+  **Dieses Format ist NICHT gegen den 26.3-Spielcode geprüft** (Stand aus 1.21.4+) – beim nächsten Validator-Lauf nachholen.
+- `ArmorManager`: nur optisch. Anderen Spielern wird per `sendEquipmentChange` ein Papier-Item mit
+  `equippable`-Komponente (Slot + Asset) vorgetäuscht, alle `armor.refresh-ticks` neu. Echte Rüstung bleibt unberührt.
+  Der Träger sieht sie nur mit `armor.show-self: true` (dann Geister-Items in den eigenen Slots).
+- Speicher-Slot `armor` (gleiches Protokoll wie `wings`, kein Protokoll-Byte geändert).
+- Neue Sets: Stil in `tools/armor.py` (`ARMOR`), Eintrag unter `armor.sets` in der config.yml, Permission in `plugin.yml`.
+- `CosmeticsPlugin.mergeNewDefaults`: trägt fehlende Einträge (`wings`, `armor.sets`, `messages`) aus der
+  mitgelieferten config.yml in die Server-Config nach; vorhandene bleiben unverändert (`auto-add-new-entries`).
 
 ## Netzwerk / Speicher
 

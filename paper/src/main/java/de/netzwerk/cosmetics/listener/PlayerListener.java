@@ -48,6 +48,7 @@ public final class PlayerListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         plugin.wingManager().remove(event.getPlayer());
+        plugin.armorManager().remove(event.getPlayer());
         plugin.storage().evict(event.getPlayer().getUniqueId());
     }
 

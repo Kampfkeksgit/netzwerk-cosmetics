@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import preview  # noqa: E402
 import wings  # noqa: E402
 import make_blockbench  # noqa: E402
+import armor  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent / "resourcepack"
 NS = ROOT / "assets" / "cosmetics"
@@ -204,6 +205,14 @@ def main() -> None:
         write_json(models / "wings" / f"{wid}_icon.json", generated_item(f"cosmetics:item/wings/{wid}/icon"))
         write_json(items / "wings" / f"{wid}_icon.json", item_definition(f"cosmetics:item/wings/{wid}_icon"))
     save_png(pack_icon(), ROOT / "pack.png")
+
+    print("Ruestungen:")
+    for sub in ("equipment", "textures/entity/equipment", "textures/item/armor", "models/item/armor", "items/armor"):
+        if (NS / sub).exists():
+            shutil.rmtree(NS / sub)
+    for aid in armor.build_all(NS):
+        write_json(models / "armor" / f"{aid}_icon.json", generated_item(f"cosmetics:item/armor/{aid}/icon"))
+        write_json(items / "armor" / f"{aid}_icon.json", item_definition(f"cosmetics:item/armor/{aid}_icon"))
 
     for kind in ("close", "remove", "prev", "next"):
         save_png(gui_button(kind), textures / "gui" / f"{kind}.png")

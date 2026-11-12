@@ -116,14 +116,14 @@ public final class CosmeticStorage {
             return;
         }
         if (cache.containsKey(uuid)) {
-            plugin.wingManager().restoreFromStorage(player);
+            plugin.restoreCosmetics(player);
             return;
         }
         executor.execute(() -> {
             loadIntoCache(uuid);
             Bukkit.getScheduler().runTask(plugin, () -> {
                 if (player.isOnline()) {
-                    plugin.wingManager().restoreFromStorage(player);
+                    plugin.restoreCosmetics(player);
                 }
             });
         });
@@ -131,7 +131,7 @@ public final class CosmeticStorage {
 
     private void receiveFromProxy(Player player, Map<String, String> data) {
         cache.put(player.getUniqueId(), new ConcurrentHashMap<>(data));
-        plugin.wingManager().restoreFromStorage(player);
+        plugin.restoreCosmetics(player);
     }
 
     /** Blockierend - nur asynchron aufrufen (PreLogin / Async-Task). Bei Bungee ohne Wirkung. */

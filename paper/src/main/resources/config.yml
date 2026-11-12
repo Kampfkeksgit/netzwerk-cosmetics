@@ -236,6 +236,51 @@ wings:
       - "<gray>Schwarzer Panzerrahmen mit roten Plasmaklingen."
 
 # ---------------------------------------------------------------------
+# Kosmetik-Ruestung (nur optisch - die echte Ruestung bleibt unberuehrt)
+# ---------------------------------------------------------------------
+armor:
+  # Wie oft die Anzeige bei anderen Spielern aufgefrischt wird (20 = 1x pro Sekunde).
+  # Noetig, weil der Server bei jeder echten Ruestungsaenderung wieder die echte Ruestung sendet.
+  refresh-ticks: 20
+  # Der Traeger sieht seine eigene Kosmetik-Ruestung. ACHTUNG: Die Teile erscheinen bei ihm dann
+  # auch als Geister-Items in den Ruestungsslots. Nur fuer Lobby-Server empfohlen.
+  show-self: false
+  # Bis zu welcher Entfernung (Bloecke) andere Spieler die Ruestung sehen
+  view-distance: 64
+
+  # id -> Set. "asset" = assets/<ns>/equipment/<name>.json im Resource Pack,
+  # "icon" = Item-Modell fuer das Menue (Standard: cosmetics:armor/<id>_icon)
+  sets:
+    angel:
+      name: "<gradient:#ffffff:#ffe9a8>Seraph-Ruestung</gradient>"
+      asset: "cosmetics:angel"
+      permission: "cosmetics.armor.angel"
+      lore:
+        - "<gray>Weisse Platten mit goldenem Saum."
+    demon:
+      name: "<gradient:#ff3b3b:#5a0010>Daemonenruestung</gradient>"
+      asset: "cosmetics:demon"
+      permission: "cosmetics.armor.demon"
+      lore:
+        - "<gray>Dunkelrot, mit gluehendem Fangzahn-Emblem."
+    mecha:
+      name: "<gradient:#e8f6ff:#21c8ff>Mecha-Panzerung</gradient>"
+      asset: "cosmetics:mecha"
+      permission: "cosmetics.armor.mecha"
+      lore:
+        - "<gray>Stahlplatten mit Reaktorkern."
+    lava:
+      name: "<gradient:#ffd34a:#ff5a0a:#2e2724>Lavadrachen-Ruestung</gradient>"
+      asset: "cosmetics:lava"
+      permission: "cosmetics.armor.lava"
+      lore:
+        - "<gray>Erkaltetes Gestein mit gluehenden Rissen."
+
+# Neue Fluegel, Ruestungen und Texte aus Plugin-Updates automatisch in diese Datei
+# uebernehmen (vorhandene Eintraege werden nie veraendert).
+auto-add-new-entries: true
+
+# ---------------------------------------------------------------------
 # Nachrichten (MiniMessage)
 # ---------------------------------------------------------------------
 messages:
@@ -245,6 +290,9 @@ messages:
   removed: "<gray>Fluegel abgelegt."
   no-permission: "<red>Diese Fluegel hast du noch nicht freigeschaltet."
   unknown-wing: "<red>Unbekannte Fluegel: <white><id>"
+  armor-removed: "<gray>Ruestung abgelegt."
+  armor-no-permission: "<red>Diese Ruestung hast du noch nicht freigeschaltet."
+  unknown-armor: "<red>Unbekannte Ruestung: <white><id>"
   reloaded: "<green>Konfiguration neu geladen."
   pack-sent: "<green>Resource Pack an <white><player></white> gesendet."
   locked-lore: "<red>✖ Gesperrt"
