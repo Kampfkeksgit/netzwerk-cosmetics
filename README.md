@@ -11,14 +11,42 @@ Server-Resource-Pack, das der Spieler beim Joinen automatisch bekommt.
 
 Für **Paper 26.3** (Java 25) und **BungeeCord**. Resource-Pack-Format 97 (26.3) ist abgedeckt.
 
+## Installieren & Updaten per Git (Windows, cmd)
+
+Die fertigen Dateien liegen immer im Ordner `dist/` dieses Repos, du musst nichts selbst bauen.
+
+**Einmalig** ([Git für Windows](https://git-scm.com/download/win) muss installiert sein):
+
+```bat
+cd C:\Server
+git clone https://github.com/Kampfkeksgit/netzwerk-cosmetics.git
+```
+
+Beim ersten Mal fragt Git nach deinem GitHub-Login, weil das Repo privat ist. Danach in
+`C:\Server\netzwerk-cosmetics\update.bat` oben die Ordner deiner Server eintragen.
+
+**Updaten:** Server stoppen, dann:
+
+```bat
+C:\Server\netzwerk-cosmetics\update.bat
+```
+
+Das Skript macht `git pull` und kopiert die Paper-JAR in alle eingetragenen Server und die
+Bungee-JAR in den Proxy. Nur pullen, ohne zu kopieren, geht so:
+
+```bat
+cd C:\Server\netzwerk-cosmetics
+git pull
+```
+
 ## Dateien
 
-Nach `./gradlew build` liegt alles in `build/dist/`:
+In `dist/`:
 
 | Datei | Wohin |
 |---|---|
-| `NetzwerkCosmetics-Paper-<version>.jar` | `plugins/` auf **jedem Paper-Server** (Lobby, Spielmodi) |
-| `NetzwerkCosmetics-Bungee-<version>.jar` | `plugins/` auf dem **BungeeCord-Proxy** |
+| `NetzwerkCosmetics-Paper.jar` | `plugins/` auf **jedem Paper-Server** (Lobby, Spielmodi) |
+| `NetzwerkCosmetics-Bungee.jar` | `plugins/` auf dem **BungeeCord-Proxy** |
 | `resourcepack.zip` | zu deinem Pack-Host hochladen |
 | `resourcepack.sha1` | Prüfsumme des Packs (nur zur Kontrolle) |
 
@@ -60,11 +88,13 @@ ein Fehler in der Konsole.
 
 ## Bauen
 
-Benötigt **Java 25**.
+Nur nötig, wenn du selbst etwas am Code oder Pack änderst. Benötigt **Java 25**.
 
 ```bash
 ./gradlew build
 ```
+
+Das aktualisiert `dist/`. Danach `dist/` mit committen, damit die Server es per `git pull` bekommen.
 
 Grafiken ändern: PNGs/Modelle in `resourcepack/` ersetzen (z. B. mit Blockbench) und neu bauen.
 Die Platzhalter-Grafiken kannst du mit `python3 tools/generate_assets.py` neu erzeugen (braucht Pillow).
